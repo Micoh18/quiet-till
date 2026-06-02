@@ -116,6 +116,12 @@ Print the compact judge evidence bundle:
 npm run judge:evidence
 ```
 
+Print the submission readiness matrix:
+
+```bash
+npm run submit:readiness
+```
+
 Run a full in-memory local demo:
 
 ```bash
@@ -182,6 +188,12 @@ Check the demo video script:
 npm run video:check
 ```
 
+Check the submission readiness matrix:
+
+```bash
+npm run readiness:check
+```
+
 Run the full local quality gate:
 
 ```bash
@@ -197,6 +209,8 @@ The transcript turns that manifest into the core demo story: public mode leaks g
 The judge evidence bundle compresses the same proof into a short JSON object: public leakage, private-market visibility, auditor receipt binding, tamper sensitivity, and the exact SKALE privacy surfaces used by the MVP.
 
 The demo video script renders a 3-minute shot list from the same deterministic flow, including the public leak, encrypted POS report, CTX settlement, lender receipt, auditor proof, and explicit guardrails about not calling the MVP ZK.
+
+The submission readiness matrix separates local/CI proof, declared fallbacks, and remaining live submission needs such as SKALE testnet deployment, live CTX flow, uploaded video, and DoraHacks submission metadata.
 
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 
