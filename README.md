@@ -192,6 +192,18 @@ Check the auditor receipt export bundle:
 npm run auditor:check
 ```
 
+Print the auditor wallet access proof:
+
+```bash
+npm run auditor:access
+```
+
+Check the auditor wallet access proof:
+
+```bash
+npm run auditor:access:check
+```
+
 Check the judge evidence bundle:
 
 ```bash
@@ -221,6 +233,8 @@ Each decrypted report also consumes a private nonce hash. Reusing the same repor
 `npm run receipt:check` verifies the canonical private receipt domain, receipt hash calculation, and tamper sensitivity. `npm run demo:local` also reconstructs the auditor receipt and asserts that its hash matches the onchain `privateReceiptHash`.
 
 `npm run auditor:export` prints a deterministic auditor receipt export bundle for the demo fixture. It includes the authorized receipt, the disclosure envelope, and an `exportHash` so the auditor can verify that the exported evidence was not altered. `npm run auditor:check` validates the same binding in CI.
+
+`npm run auditor:access` signs a deterministic EIP-191 access challenge for the auditor receipt export. For live keys, run `npm run auditor:access -- --live` with `QUIET_TILL_AUDITOR_PRIVATE_KEY`; the script recovers the signer and rejects mismatched auditor keys without writing secrets.
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 

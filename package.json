@@ -20,6 +20,8 @@
     "disclosure:check": "node scripts/check-auditor-disclosure-envelope.mjs",
     "auditor:export": "node scripts/auditor-receipt-export.mjs",
     "auditor:check": "node scripts/check-auditor-receipt-export.mjs",
+    "auditor:access": "node scripts/auditor-access-challenge.mjs",
+    "auditor:access:check": "node scripts/check-auditor-access-challenge.mjs",
     "skale:flow": "node scripts/run-skale-private-flow.mjs",
     "skale:check": "node scripts/run-skale-private-flow.mjs --dry-run --quiet",
     "demo:local": "npm run build && node scripts/run-local-demo.mjs",
@@ -30,7 +32,7 @@
     "local:check": "node scripts/run-local-demo.mjs --quiet",
     "transcript:check": "node scripts/check-demo-transcript.mjs",
     "judge:check": "node scripts/check-judge-evidence.mjs",
-    "verify": "npm test && npm run web:build && npm run demo:check && npm run report:check && npm run receipt:check && npm run payment:check && npm run disclosure:check && npm run auditor:check && npm run skale:check && npm run privacy:check && npm run deploy:check && npm run local:check && npm run transcript:check && npm run judge:check && npm audit --audit-level=high"
+    "verify": "npm test && npm run web:build && npm run demo:check && npm run report:check && npm run receipt:check && npm run payment:check && npm run disclosure:check && npm run auditor:check && npm run auditor:access:check && npm run skale:check && npm run privacy:check && npm run deploy:check && npm run local:check && npm run transcript:check && npm run judge:check && npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
