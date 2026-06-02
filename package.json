@@ -9,7 +9,8 @@
     "test": "hardhat test",
     "clean": "hardhat clean",
     "demo:manifest": "node scripts/demo-manifest.mjs",
-    "demo:check": "npm run build && node scripts/check-demo-manifest.mjs"
+    "demo:check": "npm run build && node scripts/check-demo-manifest.mjs",
+    "verify": "npm test && npm run demo:check && npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

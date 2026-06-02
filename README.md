@@ -67,6 +67,26 @@ Run tests:
 npm test
 ```
 
+Build a deterministic local demo manifest:
+
+```bash
+npm run demo:manifest
+```
+
+Check the manifest against compiled artifacts and expected repayment math:
+
+```bash
+npm run demo:check
+```
+
+Run the full local quality gate:
+
+```bash
+npm run verify
+```
+
+The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
+
 ## Privacy Boundary
 
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
