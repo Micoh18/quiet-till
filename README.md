@@ -124,7 +124,7 @@ Quiet Till does not emit daily gross sales in public settlement events. Public o
 
 `RevenueLoan` exposes public loan terms and status without an exact outstanding getter for arbitrary callers. Lenders, borrowers, auditors, the admin, and the settlement window can read exact loan snapshots through authorized calls.
 
-`AuditorDisclosure` keeps receipt metadata behind authorized reads. Public observers can see the receipt hash, but not the disclosure metadata view used by the auditor path.
+`AuditorDisclosure` keeps receipt metadata behind authorized reads. Public observers can see the receipt hash, but not the disclosure metadata view used by the auditor path. Receipt registration events do not emit the auditor address, and access checks cannot be used by arbitrary callers to probe another viewer's authorization.
 
 Fallback ERC20 payments can reveal repayment amounts. The long-term path is to replace that fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
 
