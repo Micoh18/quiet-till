@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -305,12 +305,8 @@ function PublicView() {
 }
 
 function AuditorView() {
-  const receiptHash = useMemo(() => {
-    return transcript.privateMode.visibleToMarket.privateReceiptHash.replace(
-      "$computed.",
-      ""
-    );
-  }, []);
+  const auditor = transcript.privateMode.visibleToAuditor;
+  const receipt = auditor.privateReceipt;
 
   return (
     <section className="view-grid view-auditor" aria-labelledby="auditor-heading">
@@ -326,35 +322,60 @@ function AuditorView() {
         <Metric
           icon={FileCheck}
           label="Gross sales"
-          value={display.amount(transcript.privateMode.visibleToAuditor.grossSales)}
+          value={display.amount(auditor.grossSales)}
           tone="good"
         />
         <Metric
           icon={Calculator}
           label="Repayment"
-          value={display.amount(transcript.privateMode.visibleToAuditor.repaymentAmount)}
+          value={display.amount(auditor.repaymentAmount)}
           tone="good"
         />
         <Metric
           icon={Landmark}
           label="Outstanding"
-          value={display.amount(transcript.privateMode.visibleToAuditor.outstandingAfter)}
+          value={display.amount(auditor.outstandingAfter)}
         />
         <Metric
           icon={UserCheck}
           label="Repayment rule"
-          value={display.percentFromBps(transcript.privateMode.visibleToAuditor.repaymentBps)}
+          value={display.percentFromBps(auditor.repaymentBps)}
         />
+      </div>
+
+      <div className="receipt-proof">
+        <div className="proof-status">
+          <StatusPill
+            icon={CheckCircle}
+            label={auditor.receiptHashVerified ? "Receipt hash verified" : "Receipt mismatch"}
+            tone={auditor.receiptHashVerified ? "good" : "danger"}
+          />
+          <StatusPill icon={Hash} label={`Day ${receipt.dayIndex}`} />
+        </div>
+        <div className="proof-grid">
+          <div>
+            <span>Public receipt hash</span>
+            <code>{display.shortHash(transcript.privateMode.visibleToMarket.privateReceiptHash)}</code>
+          </div>
+          <div>
+            <span>Auditor receipt hash</span>
+            <code>{display.shortHash(receipt.receiptHash)}</code>
+          </div>
+          <div>
+            <span>Tampered sales hash</span>
+            <code>{display.shortHash(auditor.tamperedGrossSalesReceiptHash)}</code>
+          </div>
+        </div>
       </div>
 
       <div className="encoded-block">
         <div>
           <span>Encoded plaintext</span>
-          <code>{display.shortHash(transcript.privateMode.visibleToAuditor.encodedPlaintext)}</code>
+          <code>{display.shortHash(auditor.encodedPlaintext)}</code>
         </div>
         <div>
-          <span>Receipt pointer</span>
-          <code>{receiptHash}</code>
+          <span>Receipt domain</span>
+          <code>{receipt.domain}</code>
         </div>
       </div>
     </section>
