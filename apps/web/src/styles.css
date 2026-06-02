@@ -62,6 +62,8 @@ button {
 .metric-label,
 .status-pill,
 .action-row,
+.flow-heading,
+.flow-step,
 .encoded-block,
 .delta-column,
 .path-step {
@@ -235,6 +237,103 @@ button {
 .loan-strip {
   display: grid;
   gap: 10px;
+}
+
+.flow-runner {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e5e9e7;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.flow-heading {
+  gap: 8px;
+  color: #31403d;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.flow-heading svg {
+  width: 16px;
+  height: 16px;
+  color: #0f766e;
+}
+
+.flow-steps,
+.flow-log {
+  display: grid;
+  gap: 8px;
+}
+
+.flow-step {
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #e2e8e4;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #465452;
+  background: #ffffff;
+  text-align: left;
+}
+
+.flow-step span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: #66706d;
+  background: #eef3ef;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.flow-step strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.flow-step-active {
+  border-color: rgba(13, 148, 136, 0.36);
+  background: #e8f7f1;
+}
+
+.flow-step-active span,
+.flow-step-complete span {
+  color: #f8fafc;
+  background: #0f766e;
+}
+
+.log-entry {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid #d8e0dc;
+  padding: 8px 0 8px 10px;
+}
+
+.log-entry strong {
+  color: #263633;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.log-entry span {
+  color: #5c6a67;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.log-good {
+  border-left-color: #0f766e;
+}
+
+.log-danger {
+  border-left-color: #be123c;
 }
 
 .demo-surface {

@@ -1,7 +1,8 @@
-import { buildManifest, buildTranscript, demo } from "../../../lib/demo-fixture.mjs";
+import { buildDemoFlow, buildManifest, buildTranscript, demo } from "../../../lib/demo-fixture.mjs";
 
 export const manifest = buildManifest();
 export const transcript = buildTranscript();
+export const demoFlow = buildDemoFlow();
 export const fixture = demo;
 
 export const display = {

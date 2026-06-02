@@ -15,6 +15,7 @@ import {
   Landmark,
   Lock,
   Megaphone,
+  Play,
   Radio,
   Receipt,
   ShieldCheck,
@@ -22,9 +23,10 @@ import {
   UserCheck,
   Wallet
 } from "lucide-react";
-import { display, fixture, manifest, settlementPath, transcript } from "./demoData";
+import { demoFlow, display, fixture, manifest, settlementPath, transcript } from "./demoData";
 
 type ViewKey = "merchant" | "public" | "auditor";
+type StepKey = (typeof demoFlow)[number]["key"];
 
 type NavItem = {
   key: ViewKey;
@@ -100,11 +102,18 @@ function AppHeader() {
 
 function ScenarioRail({
   activeView,
-  onChange
+  activeStep,
+  onChange,
+  onStepChange
 }: {
   activeView: ViewKey;
+  activeStep: StepKey;
   onChange: (view: ViewKey) => void;
+  onStepChange: (step: StepKey) => void;
 }) {
+  const activeStepIndex = demoFlow.findIndex((step) => step.key === activeStep);
+  const activeLog = demoFlow.slice(0, activeStepIndex + 1).reverse();
+
   return (
     <aside className="scenario-rail" aria-label="Demo views">
       <div className="merchant-card">
@@ -155,11 +164,58 @@ function ScenarioRail({
           value={`Day ${fixture.report.dayIndex}`}
         />
       </div>
+
+      <div className="flow-runner" aria-label="Settlement flow">
+        <div className="flow-heading">
+          <Play aria-hidden="true" />
+          <span>Demo run</span>
+        </div>
+        <div className="flow-steps">
+          {demoFlow.map((step, index) => {
+            const selected = step.key === activeStep;
+            const complete = index <= activeStepIndex;
+
+            return (
+              <button
+                key={step.key}
+                type="button"
+                className={[
+                  "flow-step",
+                  selected ? "flow-step-active" : "",
+                  complete ? "flow-step-complete" : ""
+                ].join(" ")}
+                onClick={() => {
+                  onStepChange(step.key);
+                  onChange(step.view as ViewKey);
+                }}
+              >
+                <span>{index + 1}</span>
+                <strong>{step.label}</strong>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flow-log">
+          {activeLog.map((step) => (
+            <div className={`log-entry log-${step.tone}`} key={step.key}>
+              <strong>{step.status}</strong>
+              <span>{step.event}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </aside>
   );
 }
 
-function MerchantView() {
+function MerchantView({ activeStep, onAdvance }: { activeStep: StepKey; onAdvance: () => void }) {
+  const actionLabel =
+    activeStep === "ctx-settlement"
+      ? "Open auditor proof"
+      : activeStep === "encrypted-report"
+        ? "Request CTX close"
+        : `Seal day ${fixture.report.dayIndex}`;
+
   return (
     <section className="view-grid view-merchant" aria-labelledby="merchant-heading">
       <div className="view-title">
@@ -198,9 +254,9 @@ function MerchantView() {
       </div>
 
       <div className="action-row">
-        <button type="button" className="primary-action">
+        <button type="button" className="primary-action" onClick={onAdvance}>
           <Lock aria-hidden="true" />
-          Seal day {fixture.report.dayIndex}
+          {actionLabel}
         </button>
         <StatusPill icon={CheckCircle} label="Settlement window armed" tone="good" />
       </div>
@@ -208,7 +264,7 @@ function MerchantView() {
   );
 }
 
-function PublicView() {
+function PublicView({ onAdvance }: { onAdvance: () => void }) {
   const publicSignal = transcript.publicMode.visibleToMarket.competitorSignal;
   const marketSales =
     transcript.publicMode.visibleToMarket.grossSales === null
@@ -300,6 +356,14 @@ function PublicView() {
           </p>
         </div>
       </div>
+
+      <div className="action-row">
+        <button type="button" className="primary-action" onClick={onAdvance}>
+          <Lock aria-hidden="true" />
+          Start private path
+        </button>
+        <StatusPill icon={EyeOff} label="Private path keeps sales hidden" tone="good" />
+      </div>
     </section>
   );
 }
@@ -384,15 +448,33 @@ function AuditorView() {
 
 export function App() {
   const [activeView, setActiveView] = useState<ViewKey>("public");
+  const [activeStep, setActiveStep] = useState<StepKey>(demoFlow[0].key);
+
+  function moveToStep(stepIndex: number) {
+    const nextStep = demoFlow[Math.min(stepIndex, demoFlow.length - 1)];
+
+    setActiveStep(nextStep.key);
+    setActiveView(nextStep.view as ViewKey);
+  }
+
+  function advanceStep() {
+    const currentIndex = demoFlow.findIndex((step) => step.key === activeStep);
+    moveToStep(currentIndex + 1);
+  }
 
   return (
     <main className="app-shell">
       <AppHeader />
       <section className="workspace">
-        <ScenarioRail activeView={activeView} onChange={setActiveView} />
+        <ScenarioRail
+          activeView={activeView}
+          activeStep={activeStep}
+          onChange={setActiveView}
+          onStepChange={setActiveStep}
+        />
         <section className="demo-surface">
-          {activeView === "merchant" ? <MerchantView /> : null}
-          {activeView === "public" ? <PublicView /> : null}
+          {activeView === "merchant" ? <MerchantView activeStep={activeStep} onAdvance={advanceStep} /> : null}
+          {activeView === "public" ? <PublicView onAdvance={advanceStep} /> : null}
           {activeView === "auditor" ? <AuditorView /> : null}
         </section>
       </section>
