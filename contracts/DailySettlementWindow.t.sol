@@ -4,7 +4,9 @@ pragma solidity ^0.8.28;
 import "./AuditorDisclosure.sol";
 import "./DailySettlementWindow.sol";
 import "./MerchantRegistry.sol";
+import "./MockPaymentToken.sol";
 import "./RevenueLoan.sol";
+import "./SettlementVault.sol";
 
 contract SettlementActor {
     function submitEncryptedReport(
@@ -18,6 +20,12 @@ contract SettlementActor {
 
     function onDecrypt(DailySettlementWindow window, bytes32 requestId, bytes calldata decryptedReport) external {
         window.onDecrypt(requestId, decryptedReport);
+    }
+}
+
+contract SettlementBorrower {
+    function approve(MockPaymentToken token, address spender, uint256 amount) external {
+        token.approve(spender, amount);
     }
 }
 
@@ -66,6 +74,19 @@ contract DailySettlementWindowTest {
         require(fixture.disclosure.canViewReceipt(privateReceiptHash, AUDITOR), "auditor should view receipt");
     }
 
+    function testConfiguredVaultMovesFallbackPaymentOnDecrypt() public {
+        VaultFixture memory fixture = _deployVaultFixture();
+
+        fixture.borrower.approve(fixture.token, address(fixture.vault), 500);
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(requestId, _salesReport(1_240, 99));
+
+        require(fixture.token.balanceOf(address(fixture.borrower)) == 9_901, "borrower token balance mismatch");
+        require(fixture.token.balanceOf(LENDER) == 99, "lender token balance mismatch");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "outstanding mismatch");
+    }
+
     function testRejectsUnauthorizedPosAgent() public {
         Fixture memory fixture = _deployFixture();
         SettlementActor unauthorized = new SettlementActor();
@@ -111,6 +132,16 @@ contract DailySettlementWindowTest {
         DailySettlementWindow window;
     }
 
+    struct VaultFixture {
+        MerchantRegistry registry;
+        RevenueLoan loan;
+        AuditorDisclosure disclosure;
+        DailySettlementWindow window;
+        MockPaymentToken token;
+        SettlementVault vault;
+        SettlementBorrower borrower;
+    }
+
     function _deployFixture() private returns (Fixture memory fixture) {
         fixture.registry = new MerchantRegistry(address(this));
         fixture.registry.registerMerchant(MERCHANT_ID, MERCHANT_OWNER, address(this), AUDITOR, "La Barra");
@@ -130,6 +161,34 @@ contract DailySettlementWindowTest {
         fixture.window.setDecryptCallback(address(this));
         fixture.loan.setSettlementWindow(address(fixture.window));
         fixture.disclosure.setSettlementWindow(address(fixture.window));
+    }
+
+    function _deployVaultFixture() private returns (VaultFixture memory fixture) {
+        fixture.borrower = new SettlementBorrower();
+
+        fixture.registry = new MerchantRegistry(address(this));
+        fixture.registry.registerMerchant(MERCHANT_ID, address(fixture.borrower), address(this), AUDITOR, "La Barra");
+
+        fixture.loan = new RevenueLoan(address(this), address(fixture.registry));
+        fixture.loan.createLoan(LOAN_ID, MERCHANT_ID, LENDER, address(fixture.borrower), 10_000, 800, 500);
+        fixture.loan.activateLoan(LOAN_ID);
+
+        fixture.disclosure = new AuditorDisclosure(address(this));
+        fixture.token = new MockPaymentToken("Quiet Till Mock Dollar", "qUSD", 2, address(this));
+        fixture.vault = new SettlementVault(address(this), address(fixture.token));
+        fixture.window = new DailySettlementWindow(
+            address(this),
+            address(fixture.registry),
+            address(fixture.loan),
+            address(fixture.disclosure)
+        );
+
+        fixture.window.setDecryptCallback(address(this));
+        fixture.window.setSettlementVault(address(fixture.vault));
+        fixture.loan.setSettlementWindow(address(fixture.window));
+        fixture.disclosure.setSettlementWindow(address(fixture.window));
+        fixture.vault.setSettlementWindow(address(fixture.window));
+        fixture.token.mint(address(fixture.borrower), 10_000);
     }
 
     function _salesReport(uint256 grossSales, uint256 nonce) private pure returns (bytes memory) {
