@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+interface IMerchantRegistry {
+    function ownerFor(uint256 merchantId) external view returns (address);
+    function isMerchantActive(uint256 merchantId) external view returns (bool);
+}
+
+contract RevenueLoan {
+    enum LoanStatus {
+        Pending,
+        Active,
+        Repaid,
+        Defaulted
+    }
+
+    struct LoanTerms {
+        uint256 loanId;
+        uint256 merchantId;
+        address lender;
+        address borrower;
+        uint256 principal;
+        uint256 outstanding;
+        uint16 repaymentBps;
+        uint256 maxDailyRepayment;
+        LoanStatus status;
+    }
+
+    error Unauthorized();
+    error ZeroAddress();
+    error InvalidLoanId();
+    error InvalidMerchant();
+    error InvalidPrincipal();
+    error InvalidRepaymentRate();
+    error InvalidDailyCap();
+    error LoanAlreadyCreated();
+    error LoanNotCreated();
+    error LoanNotPending();
+    error LoanNotActive();
+
+    event AdminTransferred(address indexed previousAdmin, address indexed nextAdmin);
+    event SettlementWindowUpdated(address indexed previousSettlementWindow, address indexed nextSettlementWindow);
+    event LoanCreated(
+        uint256 indexed loanId,
+        uint256 indexed merchantId,
+        address indexed lender,
+        address borrower,
+        uint256 principal,
+        uint16 repaymentBps,
+        uint256 maxDailyRepayment
+    );
+    event LoanActivated(uint256 indexed loanId);
+    event RepaymentApplied(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 privateReceiptHash);
+    event LoanRepaid(uint256 indexed loanId);
+
+    address public admin;
+    address public settlementWindow;
+    IMerchantRegistry public immutable merchantRegistry;
+
+    mapping(uint256 => LoanTerms) public loans;
+
+    modifier onlyAdmin() {
+        if (msg.sender != admin) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    modifier onlySettlementWindow() {
+        if (msg.sender != settlementWindow) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    constructor(address initialAdmin, address merchantRegistryAddress) {
+        if (initialAdmin == address(0) || merchantRegistryAddress == address(0)) {
+            revert ZeroAddress();
+        }
+
+        admin = initialAdmin;
+        merchantRegistry = IMerchantRegistry(merchantRegistryAddress);
+
+        emit AdminTransferred(address(0), initialAdmin);
+    }
+
+    function transferAdmin(address nextAdmin) external onlyAdmin {
+        if (nextAdmin == address(0)) {
+            revert ZeroAddress();
+        }
+
+        address previousAdmin = admin;
+        admin = nextAdmin;
+
+        emit AdminTransferred(previousAdmin, nextAdmin);
+    }
+
+    function setSettlementWindow(address nextSettlementWindow) external onlyAdmin {
+        if (nextSettlementWindow == address(0)) {
+            revert ZeroAddress();
+        }
+
+        address previousSettlementWindow = settlementWindow;
+        settlementWindow = nextSettlementWindow;
+
+        emit SettlementWindowUpdated(previousSettlementWindow, nextSettlementWindow);
+    }
+
+    function createLoan(
+        uint256 loanId,
+        uint256 merchantId,
+        address lender,
+        address borrower,
+        uint256 principal,
+        uint16 repaymentBps,
+        uint256 maxDailyRepayment
+    ) external onlyAdmin {
+        if (loanId == 0) {
+            revert InvalidLoanId();
+        }
+
+        if (lender == address(0) || borrower == address(0)) {
+            revert ZeroAddress();
+        }
+
+        if (principal == 0) {
+            revert InvalidPrincipal();
+        }
+
+        if (repaymentBps == 0 || repaymentBps > 10_000) {
+            revert InvalidRepaymentRate();
+        }
+
+        if (maxDailyRepayment == 0) {
+            revert InvalidDailyCap();
+        }
+
+        if (_loanExists(loanId)) {
+            revert LoanAlreadyCreated();
+        }
+
+        if (!merchantRegistry.isMerchantActive(merchantId) || merchantRegistry.ownerFor(merchantId) != borrower) {
+            revert InvalidMerchant();
+        }
+
+        loans[loanId] = LoanTerms({
+            loanId: loanId,
+            merchantId: merchantId,
+            lender: lender,
+            borrower: borrower,
+            principal: principal,
+            outstanding: principal,
+            repaymentBps: repaymentBps,
+            maxDailyRepayment: maxDailyRepayment,
+            status: LoanStatus.Pending
+        });
+
+        emit LoanCreated(loanId, merchantId, lender, borrower, principal, repaymentBps, maxDailyRepayment);
+    }
+
+    function activateLoan(uint256 loanId) external onlyAdmin {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (loan.status != LoanStatus.Pending) {
+            revert LoanNotPending();
+        }
+
+        loan.status = LoanStatus.Active;
+
+        emit LoanActivated(loanId);
+    }
+
+    function applyRepayment(
+        uint256 loanId,
+        uint256 grossSales,
+        uint256 dayIndex,
+        bytes32 privateReceiptHash
+    ) external onlySettlementWindow returns (uint256 repaymentAmount) {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (loan.status != LoanStatus.Active) {
+            revert LoanNotActive();
+        }
+
+        repaymentAmount = previewRepayment(loanId, grossSales);
+        loan.outstanding -= repaymentAmount;
+
+        emit RepaymentApplied(loanId, dayIndex, privateReceiptHash);
+
+        if (loan.outstanding == 0) {
+            loan.status = LoanStatus.Repaid;
+            emit LoanRepaid(loanId);
+        }
+    }
+
+    function previewRepayment(uint256 loanId, uint256 grossSales) public view returns (uint256) {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        uint256 rawRepayment = (grossSales * loan.repaymentBps) / 10_000;
+
+        return _min(rawRepayment, _min(loan.maxDailyRepayment, loan.outstanding));
+    }
+
+    function getOutstanding(uint256 loanId) external view returns (uint256) {
+        return _createdLoan(loanId).outstanding;
+    }
+
+    function getStatus(uint256 loanId) external view returns (LoanStatus) {
+        return _createdLoan(loanId).status;
+    }
+
+    function _createdLoan(uint256 loanId) private view returns (LoanTerms storage loan) {
+        loan = loans[loanId];
+
+        if (loan.loanId == 0) {
+            revert LoanNotCreated();
+        }
+    }
+
+    function _loanExists(uint256 loanId) private view returns (bool) {
+        return loans[loanId].loanId != 0;
+    }
+
+    function _min(uint256 left, uint256 right) private pure returns (uint256) {
+        return left < right ? left : right;
+    }
+}
