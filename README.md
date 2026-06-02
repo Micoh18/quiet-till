@@ -92,6 +92,12 @@ Print the deterministic public-vs-private demo transcript:
 npm run demo:transcript
 ```
 
+Run a full in-memory local demo:
+
+```bash
+npm run demo:local
+```
+
 Check the manifest against compiled artifacts and expected repayment math:
 
 ```bash
@@ -107,6 +113,8 @@ npm run verify
 The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
 
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
+
+`npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 
 ## Privacy Boundary
 
