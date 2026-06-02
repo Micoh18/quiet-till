@@ -104,6 +104,12 @@ Print the deterministic public-vs-private demo transcript:
 npm run demo:transcript
 ```
 
+Print the compact judge evidence bundle:
+
+```bash
+npm run judge:evidence
+```
+
 Run a full in-memory local demo:
 
 ```bash
@@ -158,6 +164,12 @@ Check private receipt hashing:
 npm run receipt:check
 ```
 
+Check the judge evidence bundle:
+
+```bash
+npm run judge:check
+```
+
 Run the full local quality gate:
 
 ```bash
@@ -169,6 +181,8 @@ GitHub Actions runs the same `npm run verify` gate on pushes to `main` and on pu
 The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
 
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
+
+The judge evidence bundle compresses the same proof into a short JSON object: public leakage, private-market visibility, auditor receipt binding, tamper sensitivity, and the exact SKALE privacy surfaces used by the MVP.
 
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 
