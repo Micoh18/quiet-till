@@ -1,0 +1,17 @@
+{
+  "name": "quiet-till",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private revenue settlement for onchain lending.",
+  "type": "module",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "hardhat": "^3.7.0",
+    "typescript": "~6.0.3"
+  }
+}

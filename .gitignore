@@ -1,0 +1,17 @@
+node_modules/
+
+# Hardhat output
+artifacts/
+cache/
+coverage/
+coverage.json
+typechain-types/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
