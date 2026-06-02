@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildTranscript } from "./demo-transcript.mjs";
+import { buildTranscript } from "../lib/demo-fixture.mjs";
 
 function main() {
   const transcript = buildTranscript();

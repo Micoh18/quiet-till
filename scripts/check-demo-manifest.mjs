@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
-import { buildManifest } from "./demo-manifest.mjs";
+import { buildManifest } from "../lib/demo-fixture.mjs";
 
 const expectedContractOrder = [
   "MerchantRegistry",
