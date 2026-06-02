@@ -117,7 +117,7 @@ async function buildDryRunPlan() {
   );
 
   for (const functionName of [
-    "submitEncryptedReport",
+    "submitEncryptedReportWithCommitment",
     "requestDailySettlementViaCTX",
     "getPublicDayStatus"
   ]) {
@@ -142,11 +142,12 @@ async function buildDryRunPlan() {
       {
         from: "posAgent",
         contract: "DailySettlementWindow",
-        function: "submitEncryptedReport",
+        function: "submitEncryptedReportWithCommitment",
         args: [
           manifest.privateReport.plaintext.loanId,
           manifest.privateReport.plaintext.dayIndex,
-          "$biteEncryptedReport"
+          "$biteEncryptedReport",
+          manifest.privateReport.plaintextCommitmentHash
         ]
       },
       {
@@ -233,11 +234,12 @@ async function runSkalePrivateFlow() {
   const submitHash = await posWallet.writeContract({
     address: windowAddress,
     abi: artifact.abi,
-    functionName: "submitEncryptedReport",
+    functionName: "submitEncryptedReportWithCommitment",
     args: [
       BigInt(manifest.privateReport.plaintext.loanId),
       BigInt(manifest.privateReport.plaintext.dayIndex),
-      envelope.encryptedReport
+      envelope.encryptedReport,
+      manifest.privateReport.plaintextCommitmentHash
     ]
   });
   await publicClient.waitForTransactionReceipt({ hash: submitHash });
@@ -292,7 +294,7 @@ async function runSkalePrivateFlow() {
       encryptedReportHash: envelope.encryptedReportHash
     },
     transactions: {
-      submitEncryptedReport: submitHash,
+      submitEncryptedReportWithCommitment: submitHash,
       requestDailySettlementViaCTX: closeHash
     },
     ctx: {

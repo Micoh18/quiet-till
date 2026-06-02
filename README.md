@@ -39,7 +39,7 @@ Early hackathon MVP with core contracts, a local demo, a BITE report-preparation
 - `MerchantRegistry`: registers merchants, POS agents, and auditors.
 - `RevenueLoan`: stores revenue-based loan terms, applies capped daily repayments, and keeps exact outstanding snapshots behind participant-only ABI reads.
 - `AuditorDisclosure`: records private receipt metadata and exposes it only to the authorized auditor, admin, or settlement window.
-- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, can submit a CTX request through the SKALE submitter precompile, accepts only the authorized manual or CTX decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
+- `DailySettlementWindow`: stores encrypted report payloads, can bind a report to an optional plaintext commitment hash, requests settlement, can submit a CTX request through the SKALE submitter precompile, accepts only the authorized manual or CTX decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
 - `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
 - `PublicModeSimulator`: publishes sales and competitor signals for the public-mode comparison.
@@ -183,6 +183,8 @@ The demo manifest describes contract constructor arguments, setup calls, the enc
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
 
 The judge evidence bundle compresses the same proof into a short JSON object: public leakage, private-market visibility, auditor receipt binding, tamper sensitivity, and the exact SKALE privacy surfaces used by the MVP.
+
+The encrypted report path can include a plaintext commitment hash. When present, the settlement callback must decrypt to bytes matching that commitment before repayment is applied.
 
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 

@@ -206,11 +206,12 @@ async function runLocalDemo() {
 
     await writeContract({
       contractName: "DailySettlementWindow",
-      functionName: "submitEncryptedReport",
+      functionName: "submitEncryptedReportWithCommitment",
       args: [
         manifest.privateReport.plaintext.loanId,
         manifest.privateReport.plaintext.dayIndex,
-        manifest.privateReport.encryptedReportPlaceholder
+        manifest.privateReport.encryptedReportPlaceholder,
+        manifest.privateReport.plaintextCommitmentHash
       ],
       from: "posAgent"
     });

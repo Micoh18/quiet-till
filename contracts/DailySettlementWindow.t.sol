@@ -18,6 +18,16 @@ contract SettlementActor {
         window.submitEncryptedReport(loanId, dayIndex, encryptedReport);
     }
 
+    function submitEncryptedReportWithCommitment(
+        DailySettlementWindow window,
+        uint256 loanId,
+        uint256 dayIndex,
+        bytes calldata encryptedReport,
+        bytes32 plaintextCommitmentHash
+    ) external {
+        window.submitEncryptedReportWithCommitment(loanId, dayIndex, encryptedReport, plaintextCommitmentHash);
+    }
+
     function onDecrypt(DailySettlementWindow window, bytes32 requestId, bytes calldata decryptedReport) external {
         window.onDecrypt(requestId, decryptedReport);
     }
@@ -135,6 +145,53 @@ contract DailySettlementWindowTest {
         require(fixture.disclosure.canViewReceipt(privateReceiptHash, AUDITOR), "auditor should view receipt");
     }
 
+    function testCommittedReportSettlesWhenPlaintextMatches() public {
+        Fixture memory fixture = _deployFixture();
+        bytes memory report = _salesReport(1_240, 99);
+
+        fixture.window.submitEncryptedReportWithCommitment(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT, keccak256(report));
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(requestId, report);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            ,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+
+        require(status == DailySettlementWindow.DayStatus.Settled, "committed report should settle");
+        require(privateReceiptHash != bytes32(0), "committed report should set receipt");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "committed outstanding mismatch");
+    }
+
+    function testRejectsCommittedReportWithDifferentPlaintext() public {
+        Fixture memory fixture = _deployFixture();
+        bytes memory committedReport = _salesReport(1_240, 99);
+        bytes memory tamperedReport = _salesReport(1_230, 99);
+
+        fixture.window.submitEncryptedReportWithCommitment(
+            LOAN_ID,
+            DAY_INDEX,
+            ENCRYPTED_REPORT,
+            keccak256(committedReport)
+        );
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+
+        try fixture.window.onDecrypt(requestId, tamperedReport) {
+            revert("expected committed plaintext mismatch");
+        } catch (bytes memory) {
+            require(true, "committed plaintext mismatch rejected");
+        }
+    }
+
+    function testRejectsZeroPlaintextCommitment() public {
+        try this.fixtureSubmitZeroCommitment() {
+            revert("expected zero commitment rejection");
+        } catch (bytes memory) {
+            require(true, "zero commitment rejected");
+        }
+    }
+
     function testConfiguredVaultMovesFallbackPaymentOnDecrypt() public {
         VaultFixture memory fixture = _deployVaultFixture();
 
@@ -201,6 +258,11 @@ contract DailySettlementWindowTest {
         } catch (bytes memory) {
             require(true, "unauthorized pos agent rejected");
         }
+    }
+
+    function fixtureSubmitZeroCommitment() public {
+        Fixture memory fixture = _deployFixture();
+        fixture.window.submitEncryptedReportWithCommitment(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT, bytes32(0));
     }
 
     function testRejectsUnauthorizedDecryptCallback() public {

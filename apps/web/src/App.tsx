@@ -249,6 +249,10 @@ function MerchantView({ activeStep, onAdvance }: { activeStep: StepKey; onAdvanc
           <span>Report hash</span>
           <code>{display.shortHash(manifest.privateReport.encryptedReportHash)}</code>
         </div>
+        <div className="register-row">
+          <span>Plaintext commitment</span>
+          <code>{display.shortHash(manifest.privateReport.plaintextCommitmentHash)}</code>
+        </div>
       </div>
 
       <div className="privacy-path">

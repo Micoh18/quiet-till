@@ -34,6 +34,11 @@ function main() {
   assert.equal(evidence.auditorEvidence.grossSales, 1_240);
   assert.equal(evidence.auditorEvidence.repaymentAmount, 99);
   assert.equal(evidence.auditorEvidence.outstandingAfter, 9_901);
+  assert.equal(
+    evidence.auditorEvidence.plaintextCommitmentHash,
+    "0x198349371218c66179f3301f80a3705876d4b08bf9f92422f391926aa4ea6ae7"
+  );
+  assert.equal(evidence.auditorEvidence.plaintextCommitmentMatches, true);
   assert.equal(evidence.tamperCheck.tamperDetected, true);
   assert.notEqual(
     evidence.tamperCheck.tamperedReceiptHash,
@@ -42,12 +47,14 @@ function main() {
 
   assert.equal(evidence.skalePrivacyUse.encryptedReportStoredOnchain, true);
   assert.equal(evidence.skalePrivacyUse.ctxSubmitterPrecompile, "0x1B");
+  assert.equal(evidence.skalePrivacyUse.plaintextCommitmentChecked, true);
   assert.equal(evidence.skalePrivacyUse.publicLeakBlocked, true);
   assert.equal(evidence.passConditions.hasCompleteRoleFlow, true);
   assert.equal(evidence.passConditions.noQuietTillPublicGrossSales, true);
   assert.equal(evidence.passConditions.noQuietTillPublicProjectedRepayment, true);
   assert.equal(evidence.passConditions.lenderReceiptBinding, true);
   assert.equal(evidence.passConditions.auditorDisclosureAuthorized, true);
+  assert.equal(evidence.passConditions.plaintextCommitmentBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
 

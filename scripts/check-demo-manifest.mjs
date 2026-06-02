@@ -50,6 +50,10 @@ async function main() {
   assert.equal(manifest.privateReport.plaintext.grossSales, 1_240);
   assert.equal(manifest.privateReport.encodedPlaintext.length, 322);
   assert.equal(
+    manifest.privateReport.plaintextCommitmentHash,
+    "0x198349371218c66179f3301f80a3705876d4b08bf9f92422f391926aa4ea6ae7"
+  );
+  assert.equal(
     manifest.privateReport.encryptedReportHash,
     "0xb78c4790e0235c77f196a6ff65c1032eda11a10562d7664de22fd59a78b52af8"
   );

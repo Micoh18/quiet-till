@@ -49,6 +49,7 @@ contract DailySettlementWindow {
         uint256 dayIndex;
         bytes encryptedReport;
         bytes32 encryptedReportHash;
+        bytes32 plaintextCommitmentHash;
         bytes32 privateReceiptHash;
         DayStatus status;
         uint256 submittedAt;
@@ -80,6 +81,7 @@ contract DailySettlementWindow {
     error InvalidReportMerchant();
     error InvalidReportDay();
     error InvalidSalesAmount();
+    error InvalidReportCommitment();
     error InvalidCTXCallbackGas();
     error InvalidCTXArguments();
     error InvalidCTXCallbackSender();
@@ -217,37 +219,20 @@ contract DailySettlementWindow {
     }
 
     function submitEncryptedReport(uint256 loanId, uint256 dayIndex, bytes calldata encryptedReport) external {
-        if (encryptedReport.length == 0) {
-            revert EmptyEncryptedReport();
+        _submitEncryptedReport(loanId, dayIndex, encryptedReport, bytes32(0));
+    }
+
+    function submitEncryptedReportWithCommitment(
+        uint256 loanId,
+        uint256 dayIndex,
+        bytes calldata encryptedReport,
+        bytes32 plaintextCommitmentHash
+    ) external {
+        if (plaintextCommitmentHash == bytes32(0)) {
+            revert InvalidReportCommitment();
         }
 
-        SettlementDay storage day = _settlementDays[loanId][dayIndex];
-
-        if (day.status != DayStatus.Open) {
-            revert DayAlreadyReported();
-        }
-
-        uint256 merchantId = revenueLoan.merchantIdFor(loanId);
-
-        if (!merchantRegistry.isPosAgentFor(merchantId, msg.sender)) {
-            revert Unauthorized();
-        }
-
-        bytes32 encryptedReportHash = keccak256(encryptedReport);
-
-        _settlementDays[loanId][dayIndex] = SettlementDay({
-            loanId: loanId,
-            merchantId: merchantId,
-            dayIndex: dayIndex,
-            encryptedReport: encryptedReport,
-            encryptedReportHash: encryptedReportHash,
-            privateReceiptHash: bytes32(0),
-            status: DayStatus.ReportSubmitted,
-            submittedAt: block.timestamp,
-            settledAt: 0
-        });
-
-        emit EncryptedReportSubmitted(loanId, dayIndex, merchantId, encryptedReportHash);
+        _submitEncryptedReport(loanId, dayIndex, encryptedReport, plaintextCommitmentHash);
     }
 
     function requestDailySettlement(uint256 loanId, uint256 dayIndex) external returns (bytes32 requestId) {
@@ -334,6 +319,46 @@ contract DailySettlementWindow {
         return (day.status, day.encryptedReportHash, day.privateReceiptHash);
     }
 
+    function _submitEncryptedReport(
+        uint256 loanId,
+        uint256 dayIndex,
+        bytes calldata encryptedReport,
+        bytes32 plaintextCommitmentHash
+    ) private {
+        if (encryptedReport.length == 0) {
+            revert EmptyEncryptedReport();
+        }
+
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
+
+        if (day.status != DayStatus.Open) {
+            revert DayAlreadyReported();
+        }
+
+        uint256 merchantId = revenueLoan.merchantIdFor(loanId);
+
+        if (!merchantRegistry.isPosAgentFor(merchantId, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        bytes32 encryptedReportHash = keccak256(encryptedReport);
+
+        _settlementDays[loanId][dayIndex] = SettlementDay({
+            loanId: loanId,
+            merchantId: merchantId,
+            dayIndex: dayIndex,
+            encryptedReport: encryptedReport,
+            encryptedReportHash: encryptedReportHash,
+            plaintextCommitmentHash: plaintextCommitmentHash,
+            privateReceiptHash: bytes32(0),
+            status: DayStatus.ReportSubmitted,
+            submittedAt: block.timestamp,
+            settledAt: 0
+        });
+
+        emit EncryptedReportSubmitted(loanId, dayIndex, merchantId, encryptedReportHash);
+    }
+
     function _openDecryptRequest(uint256 loanId, uint256 dayIndex, address requester) private returns (bytes32 requestId) {
         SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
@@ -386,6 +411,10 @@ contract DailySettlementWindow {
 
         if (day.status != DayStatus.DecryptRequested) {
             revert DayAlreadyReported();
+        }
+
+        if (day.plaintextCommitmentHash != bytes32(0) && keccak256(decryptedReport) != day.plaintextCommitmentHash) {
+            revert InvalidReportCommitment();
         }
 
         SalesReportPlaintext memory report = abi.decode(decryptedReport, (SalesReportPlaintext));
