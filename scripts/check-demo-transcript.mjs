@@ -30,6 +30,12 @@ function main() {
     transcript.privateMode.visibleToLender.privateReceiptHash,
     transcript.privateMode.visibleToMarket.privateReceiptHash
   );
+  assert.equal(transcript.privateMode.visibleToAuditor.authorization.canViewReceipt, true);
+  assert.equal(transcript.privateMode.visibleToAuditor.authorization.publicObserverCanViewReceipt, false);
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.authorization.disclosureMode,
+    "Role-authorized receipt metadata"
+  );
   assert.equal(transcript.privateMode.visibleToAuditor.grossSales, 1_240);
   assert.equal(transcript.privateMode.visibleToAuditor.repaymentAmount, 99);
   assert.equal(transcript.privateMode.visibleToAuditor.outstandingBefore, 10_000);

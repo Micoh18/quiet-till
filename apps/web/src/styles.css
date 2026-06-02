@@ -63,6 +63,7 @@ button {
 .status-pill,
 .action-row,
 .evidence-header,
+.gate-heading,
 .condition-pill,
 .flow-heading,
 .flow-step,
@@ -367,6 +368,7 @@ button {
 .lender-ledger,
 .lender-receipt,
 .payment-boundary,
+.disclosure-gate,
 .receipt-proof,
 .judge-evidence,
 .encoded-block,
@@ -728,6 +730,71 @@ button {
   line-height: 1.4;
 }
 
+.disclosure-gate {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-color: rgba(79, 70, 229, 0.18);
+  background: #f8f8ff;
+}
+
+.gate-heading {
+  gap: 10px;
+}
+
+.gate-heading > svg {
+  width: 19px;
+  height: 19px;
+  color: #4f46e5;
+}
+
+.gate-heading span {
+  display: block;
+  color: #5b6077;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.gate-heading strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #17211f;
+  font-size: 1rem;
+}
+
+.gate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gate-grid div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border-left: 3px solid rgba(79, 70, 229, 0.36);
+  padding-left: 12px;
+}
+
+.gate-grid span {
+  color: #5b6077;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.gate-grid code,
+.gate-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #3730a3;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
 .receipt-proof {
   display: grid;
   gap: 14px;
@@ -939,6 +1006,7 @@ button {
   .lender-ledger,
   .lender-proof-grid,
   .evidence-grid,
+  .gate-grid,
   .proof-grid {
     grid-template-columns: 1fr;
   }

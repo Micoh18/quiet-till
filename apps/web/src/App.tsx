@@ -506,6 +506,7 @@ function LenderView({ onAdvance }: { onAdvance: () => void }) {
 
 function AuditorView() {
   const auditor = transcript.privateMode.visibleToAuditor;
+  const authorization = auditor.authorization;
   const receipt = auditor.privateReceipt;
 
   return (
@@ -541,6 +542,30 @@ function AuditorView() {
           label="Repayment rule"
           value={display.percentFromBps(auditor.repaymentBps)}
         />
+      </div>
+
+      <div className="disclosure-gate">
+        <div className="gate-heading">
+          <ShieldCheck aria-hidden="true" />
+          <div>
+            <span>Selective disclosure</span>
+            <strong>{authorization.disclosureMode}</strong>
+          </div>
+        </div>
+        <div className="gate-grid">
+          <div>
+            <span>Authorized auditor</span>
+            <code>{display.shortHash(authorization.auditor)}</code>
+          </div>
+          <div>
+            <span>Auditor access</span>
+            <strong>{authorization.canViewReceipt ? "allowed" : "blocked"}</strong>
+          </div>
+          <div>
+            <span>Public observer</span>
+            <strong>{authorization.publicObserverCanViewReceipt ? "allowed" : "blocked"}</strong>
+          </div>
+        </div>
       </div>
 
       <div className="receipt-proof">

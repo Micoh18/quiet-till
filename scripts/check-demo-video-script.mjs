@@ -24,9 +24,11 @@ function main() {
   assert.equal(script.submissionChecklist.publicLeakShown, true);
   assert.equal(script.submissionChecklist.privateSalesHidden, true);
   assert.equal(script.submissionChecklist.lenderReceiptShown, true);
+  assert.equal(script.submissionChecklist.auditorDisclosureAuthorized, true);
   assert.equal(script.submissionChecklist.auditorTamperCheckShown, true);
   assert.equal(rendered.includes("0:20-0:50 - Public chain leak"), true);
   assert.equal(rendered.includes("Do not call the MVP ZK."), true);
+  assert.equal(rendered.includes("public observer cannot open the receipt"), true);
   assert.equal(rendered.includes("lender-receipt"), true);
 
   console.log("Demo video script check passed.");

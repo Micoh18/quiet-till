@@ -29,6 +29,8 @@ function main() {
   assert.equal(evidence.lenderEvidence.fallbackPaymentIsPublic, true);
 
   assert.equal(evidence.auditorEvidence.receiptCommitmentMatches, true);
+  assert.equal(evidence.auditorEvidence.authorization.canViewReceipt, true);
+  assert.equal(evidence.auditorEvidence.authorization.publicObserverCanViewReceipt, false);
   assert.equal(evidence.auditorEvidence.grossSales, 1_240);
   assert.equal(evidence.auditorEvidence.repaymentAmount, 99);
   assert.equal(evidence.auditorEvidence.outstandingAfter, 9_901);
@@ -45,6 +47,7 @@ function main() {
   assert.equal(evidence.passConditions.noQuietTillPublicGrossSales, true);
   assert.equal(evidence.passConditions.noQuietTillPublicProjectedRepayment, true);
   assert.equal(evidence.passConditions.lenderReceiptBinding, true);
+  assert.equal(evidence.passConditions.auditorDisclosureAuthorized, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
 
