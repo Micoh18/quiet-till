@@ -13,6 +13,14 @@ contract DisclosureActor {
     ) external {
         disclosure.registerReceipt(loanId, dayIndex, receiptHash, auditor);
     }
+
+    function getReceiptMeta(AuditorDisclosure disclosure, bytes32 receiptHash)
+        external
+        view
+        returns (AuditorDisclosure.PrivateReceiptMeta memory)
+    {
+        return disclosure.getReceiptMeta(receiptHash);
+    }
 }
 
 contract AuditorDisclosureTest {
@@ -27,19 +35,13 @@ contract AuditorDisclosureTest {
 
         disclosure.registerReceipt(LOAN_ID, DAY_INDEX, RECEIPT_HASH, AUDITOR);
 
-        (
-            uint256 loanId,
-            uint256 dayIndex,
-            bytes32 receiptHash,
-            address auditor,
-            bool exists
-        ) = disclosure.receiptMeta(RECEIPT_HASH);
+        AuditorDisclosure.PrivateReceiptMeta memory meta = disclosure.getReceiptMeta(RECEIPT_HASH);
 
-        require(loanId == LOAN_ID, "loan id mismatch");
-        require(dayIndex == DAY_INDEX, "day index mismatch");
-        require(receiptHash == RECEIPT_HASH, "receipt hash mismatch");
-        require(auditor == AUDITOR, "auditor mismatch");
-        require(exists, "receipt should exist");
+        require(meta.loanId == LOAN_ID, "loan id mismatch");
+        require(meta.dayIndex == DAY_INDEX, "day index mismatch");
+        require(meta.receiptHash == RECEIPT_HASH, "receipt hash mismatch");
+        require(meta.auditor == AUDITOR, "auditor mismatch");
+        require(meta.exists, "receipt should exist");
         require(disclosure.receiptHashForDay(LOAN_ID, DAY_INDEX) == RECEIPT_HASH, "day lookup mismatch");
     }
 
@@ -49,6 +51,18 @@ contract AuditorDisclosureTest {
 
         require(disclosure.canViewReceipt(RECEIPT_HASH, AUDITOR), "auditor should view");
         require(!disclosure.canViewReceipt(RECEIPT_HASH, VIEWER), "viewer should not view");
+    }
+
+    function testRejectsUnauthorizedReceiptMetaRead() public {
+        AuditorDisclosure disclosure = _configuredDisclosure();
+        DisclosureActor viewer = new DisclosureActor();
+        disclosure.registerReceipt(LOAN_ID, DAY_INDEX, RECEIPT_HASH, AUDITOR);
+
+        try viewer.getReceiptMeta(disclosure, RECEIPT_HASH) {
+            revert("expected unauthorized metadata read");
+        } catch (bytes memory) {
+            require(true, "unauthorized metadata read rejected");
+        }
     }
 
     function testRejectsUnauthorizedRegistration() public {

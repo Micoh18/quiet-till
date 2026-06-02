@@ -28,7 +28,7 @@ contract AuditorDisclosure {
     address public admin;
     address public settlementWindow;
 
-    mapping(bytes32 => PrivateReceiptMeta) public receiptMeta;
+    mapping(bytes32 => PrivateReceiptMeta) private _receiptMeta;
     mapping(uint256 => mapping(uint256 => bytes32)) public receiptHashForDay;
 
     modifier onlyAdmin() {
@@ -88,11 +88,11 @@ contract AuditorDisclosure {
             revert EmptyReceiptHash();
         }
 
-        if (receiptMeta[receiptHash].exists || receiptHashForDay[loanId][dayIndex] != bytes32(0)) {
+        if (_receiptMeta[receiptHash].exists || receiptHashForDay[loanId][dayIndex] != bytes32(0)) {
             revert ReceiptAlreadyRegistered();
         }
 
-        receiptMeta[receiptHash] = PrivateReceiptMeta({
+        _receiptMeta[receiptHash] = PrivateReceiptMeta({
             loanId: loanId,
             dayIndex: dayIndex,
             receiptHash: receiptHash,
@@ -102,6 +102,16 @@ contract AuditorDisclosure {
         receiptHashForDay[loanId][dayIndex] = receiptHash;
 
         emit PrivateReceiptRegistered(loanId, dayIndex, receiptHash, auditor);
+    }
+
+    function getReceiptMeta(bytes32 receiptHash) external view returns (PrivateReceiptMeta memory) {
+        PrivateReceiptMeta storage meta = _registeredReceipt(receiptHash);
+
+        if (!_canViewMeta(meta, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        return meta;
     }
 
     function canViewReceipt(bytes32 receiptHash, address viewer) external view returns (bool) {
@@ -115,10 +125,14 @@ contract AuditorDisclosure {
     }
 
     function _registeredReceipt(bytes32 receiptHash) private view returns (PrivateReceiptMeta storage meta) {
-        meta = receiptMeta[receiptHash];
+        meta = _receiptMeta[receiptHash];
 
         if (!meta.exists) {
             revert ReceiptNotRegistered();
         }
+    }
+
+    function _canViewMeta(PrivateReceiptMeta storage meta, address viewer) private view returns (bool) {
+        return viewer == admin || viewer == settlementWindow || viewer == meta.auditor;
     }
 }
