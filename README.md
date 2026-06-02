@@ -39,7 +39,7 @@ Early hackathon MVP with the first contract layer in place.
 - `MerchantRegistry`: registers merchants, POS agents, and auditors.
 - `RevenueLoan`: stores revenue-based loan terms and applies capped daily repayments.
 - `AuditorDisclosure`: records private receipt metadata for authorized auditors.
-- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, and accepts an authorized decrypt callback.
+- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, accepts an authorized decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
 - `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
 - `PublicModeSimulator`: publishes sales and competitor signals for the public-mode comparison.
