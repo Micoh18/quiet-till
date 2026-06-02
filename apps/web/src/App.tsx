@@ -229,6 +229,19 @@ function PublicView() {
         </div>
       </div>
 
+      <div className="delta-banner" aria-label="Privacy delta">
+        <div className="delta-chip delta-leak">
+          <Eye aria-hidden="true" />
+          <span>Public mode</span>
+          <strong>{marketSales}</strong>
+        </div>
+        <div className="delta-chip delta-quiet">
+          <EyeOff aria-hidden="true" />
+          <span>Quiet Till</span>
+          <strong>{privateSales}</strong>
+        </div>
+      </div>
+
       <div className="comparison-columns">
         <div className="leak-column">
           <div className="column-heading">

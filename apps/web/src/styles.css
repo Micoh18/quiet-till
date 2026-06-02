@@ -379,6 +379,54 @@ button {
   align-items: stretch;
 }
 
+.delta-banner {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.delta-chip {
+  display: grid;
+  grid-template-columns: 22px minmax(86px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border: 1px solid #e3e8e5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.delta-chip svg {
+  width: 18px;
+  height: 18px;
+}
+
+.delta-chip span {
+  color: #66706d;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.delta-chip strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #17211f;
+  font-size: 1.08rem;
+  justify-self: end;
+}
+
+.delta-leak {
+  border-color: rgba(190, 18, 60, 0.2);
+  color: #be123c;
+}
+
+.delta-quiet {
+  border-color: rgba(13, 148, 136, 0.24);
+  color: #0f766e;
+}
+
 .leak-column,
 .quiet-column {
   display: grid;
@@ -543,13 +591,23 @@ button {
     display: grid;
   }
 
+  .demo-surface {
+    order: 1;
+  }
+
   .scenario-rail {
     display: grid;
     grid-template-columns: 1fr;
+    order: 2;
   }
 
   .comparison-columns {
     grid-template-columns: 1fr;
+  }
+
+  .leak-column,
+  .quiet-column {
+    min-height: auto;
   }
 
   .delta-column {
@@ -594,6 +652,14 @@ button {
 
   .encoded-block {
     flex-direction: column;
+  }
+
+  .delta-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .metric {
+    min-height: 76px;
   }
 
   .status-pill {
