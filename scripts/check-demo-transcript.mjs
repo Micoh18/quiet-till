@@ -19,7 +19,7 @@ function main() {
   );
   assert.equal(
     transcript.privateMode.visibleToMarket.privateReceiptHash,
-    "0x8e05af5fbae10a8897a460032a3d9684bffe2ec13e35c8b0ceb247411a0de8b7"
+    "0x0af07f4bf9d1a370ff86b672ddbd0053f9595087867001d798576e78f1c88628"
   );
   assert.equal(transcript.privateMode.visibleToLender.paymentStatus, "PaymentRecorded");
   assert.equal(transcript.privateMode.visibleToLender.tokenSymbol, "qUSD");

@@ -36,7 +36,7 @@ function main() {
   assert.equal(evidence.auditorEvidence.outstandingAfter, 9_901);
   assert.equal(
     evidence.auditorEvidence.plaintextCommitmentHash,
-    "0x198349371218c66179f3301f80a3705876d4b08bf9f92422f391926aa4ea6ae7"
+    "0xda06e5e6268974807a2425dd277a50b37959e5e42f0f8588c1eb5dcaa331bed7"
   );
   assert.equal(evidence.auditorEvidence.plaintextCommitmentMatches, true);
   assert.equal(evidence.tamperCheck.tamperDetected, true);

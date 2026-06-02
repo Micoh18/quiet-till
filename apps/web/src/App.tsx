@@ -243,7 +243,7 @@ function MerchantView({ activeStep, onAdvance }: { activeStep: StepKey; onAdvanc
         </div>
         <div className="register-row">
           <span>Nonce</span>
-          <strong>{fixture.report.nonce}</strong>
+          <code>{display.shortHash(`0x${BigInt(fixture.report.nonce).toString(16)}`)}</code>
         </div>
         <div className="register-row">
           <span>Report hash</span>
