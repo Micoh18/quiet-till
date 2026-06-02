@@ -19,7 +19,6 @@ import {
   Play,
   Radio,
   Receipt,
-  Rocket,
   ShieldCheck,
   Terminal,
   UserCheck,
@@ -32,11 +31,10 @@ import {
   judgeEvidence,
   manifest,
   settlementPath,
-  submissionReadiness,
   transcript
 } from "./demoData";
 
-type ViewKey = "merchant" | "public" | "lender" | "auditor" | "submission";
+type ViewKey = "merchant" | "public" | "lender" | "auditor";
 type StepKey = (typeof demoFlow)[number]["key"];
 
 type NavItem = {
@@ -49,8 +47,7 @@ const navItems: NavItem[] = [
   { key: "merchant", label: "Merchant", icon: Terminal },
   { key: "public", label: "Market", icon: Eye },
   { key: "lender", label: "Lender", icon: Landmark },
-  { key: "auditor", label: "Auditor", icon: ShieldCheck },
-  { key: "submission", label: "Submission", icon: Rocket }
+  { key: "auditor", label: "Auditor", icon: ShieldCheck }
 ];
 
 function Metric({
@@ -620,100 +617,6 @@ function AuditorView() {
   );
 }
 
-function ReadinessItem({
-  item
-}: {
-  item: {
-    item: string;
-    status: string;
-    proof?: string;
-    command?: string;
-    note?: string;
-    requiredEvidence?: string;
-  };
-}) {
-  return (
-    <div className={`readiness-item readiness-${item.status}`}>
-      <div>
-        <span>{item.status}</span>
-        <strong>{item.item}</strong>
-      </div>
-      <code>{item.proof ?? item.command}</code>
-      <p>{item.note ?? item.requiredEvidence}</p>
-    </div>
-  );
-}
-
-function SubmissionView() {
-  const localEvidence = submissionReadiness.localEvidence.slice(0, 4);
-  const liveNeeds = submissionReadiness.liveSubmissionNeeds;
-  const judgeProofs = Object.entries(submissionReadiness.judgeProofs);
-
-  return (
-    <section className="view-grid view-submission" aria-labelledby="submission-heading">
-      <div className="view-title">
-        <Rocket aria-hidden="true" />
-        <div>
-          <p>Submission readiness</p>
-          <h2 id="submission-heading">Proofs and remaining live work</h2>
-        </div>
-      </div>
-
-      <div className="readiness-summary">
-        <div>
-          <span>Local gate</span>
-          <strong>{submissionReadiness.commands.localGate}</strong>
-        </div>
-        <div>
-          <span>Readiness command</span>
-          <strong>{submissionReadiness.commands.readiness}</strong>
-        </div>
-        <div>
-          <span>Live flow</span>
-          <strong>{submissionReadiness.commands.livePrivateFlow}</strong>
-        </div>
-      </div>
-
-      <div className="proof-checks">
-        {judgeProofs.map(([label, passed]) => (
-          <span className="condition-pill" key={label}>
-            <CheckCircle aria-hidden="true" />
-            {label}: {passed ? "pass" : "fail"}
-          </span>
-        ))}
-      </div>
-
-      <div className="readiness-columns">
-        <div className="readiness-section">
-          <div className="column-heading">
-            <ClipboardCheck aria-hidden="true" />
-            <div>
-              <p>Local and CI proof</p>
-              <h3>Ready now</h3>
-            </div>
-          </div>
-          {localEvidence.map((item) => (
-            <ReadinessItem item={item} key={item.item} />
-          ))}
-        </div>
-
-        <div className="readiness-section readiness-section-live">
-          <div className="column-heading">
-            <Radio aria-hidden="true" />
-            <div>
-              <p>Submission evidence</p>
-              <h3>Still needed</h3>
-            </div>
-          </div>
-          {liveNeeds.map((item) => (
-            <ReadinessItem item={item} key={item.item} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function App() {
   const [activeView, setActiveView] = useState<ViewKey>("public");
   const [activeStep, setActiveStep] = useState<StepKey>(demoFlow[0].key);
@@ -745,7 +648,6 @@ export function App() {
           {activeView === "public" ? <PublicView onAdvance={advanceStep} /> : null}
           {activeView === "lender" ? <LenderView onAdvance={advanceStep} /> : null}
           {activeView === "auditor" ? <AuditorView /> : null}
-          {activeView === "submission" ? <SubmissionView /> : null}
         </section>
       </section>
     </main>
