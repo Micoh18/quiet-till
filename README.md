@@ -68,6 +68,18 @@ Run tests:
 npm test
 ```
 
+Run the local web demo console:
+
+```bash
+npm run web:dev
+```
+
+Build the web demo console:
+
+```bash
+npm run web:build
+```
+
 Build a deterministic local demo manifest:
 
 ```bash
