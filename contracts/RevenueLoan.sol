@@ -209,6 +209,18 @@ contract RevenueLoan {
         return _createdLoan(loanId).status;
     }
 
+    function merchantIdFor(uint256 loanId) external view returns (uint256) {
+        return _createdLoan(loanId).merchantId;
+    }
+
+    function lenderFor(uint256 loanId) external view returns (address) {
+        return _createdLoan(loanId).lender;
+    }
+
+    function borrowerFor(uint256 loanId) external view returns (address) {
+        return _createdLoan(loanId).borrower;
+    }
+
     function _createdLoan(uint256 loanId) private view returns (LoanTerms storage loan) {
         loan = loans[loanId];
 
