@@ -1,7 +1,8 @@
-import { buildManifest, buildTranscript } from "../../../lib/demo-fixture.mjs";
+import { buildManifest, buildTranscript, demo } from "../../../lib/demo-fixture.mjs";
 
 export const manifest = buildManifest();
 export const transcript = buildTranscript();
+export const fixture = demo;
 
 export const display = {
   amount(value: number) {

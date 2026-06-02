@@ -22,7 +22,7 @@ import {
   UserCheck,
   Wallet
 } from "lucide-react";
-import { display, manifest, settlementPath, transcript } from "./demoData";
+import { display, fixture, manifest, settlementPath, transcript } from "./demoData";
 
 type ViewKey = "merchant" | "public" | "auditor";
 
@@ -91,7 +91,7 @@ function AppHeader() {
       </div>
       <div className="top-status" aria-label="Demo state">
         <StatusPill icon={Radio} label={`Chain ${manifest.chainId}`} />
-        <StatusPill icon={CircleDollarSign} label={manifest.token.symbol} tone="good" />
+        <StatusPill icon={CircleDollarSign} label={fixture.token.symbol} tone="good" />
         <StatusPill icon={Hash} label="Deterministic fixture" tone="warn" />
       </div>
     </header>
@@ -113,7 +113,7 @@ function ScenarioRail({
         </div>
         <div>
           <p>Merchant</p>
-          <h2>{manifest.merchant.displayName}</h2>
+          <h2>{fixture.merchant.displayName}</h2>
         </div>
       </div>
 
@@ -142,17 +142,17 @@ function ScenarioRail({
         <Metric
           icon={Wallet}
           label="Principal"
-          value={display.amount(manifest.loan.principal)}
+          value={display.amount(fixture.loan.principal)}
         />
         <Metric
           icon={Calculator}
           label="Revenue share"
-          value={display.percentFromBps(manifest.loan.repaymentBps)}
+          value={display.percentFromBps(fixture.loan.repaymentBps)}
         />
         <Metric
           icon={Activity}
           label="Day index"
-          value={`Day ${manifest.report.dayIndex}`}
+          value={`Day ${fixture.report.dayIndex}`}
         />
       </div>
     </aside>
@@ -173,11 +173,11 @@ function MerchantView() {
       <div className="register-screen">
         <div className="register-row">
           <span>Local gross sales</span>
-          <strong>{display.amount(manifest.report.grossSales)}</strong>
+          <strong>{display.amount(fixture.report.grossSales)}</strong>
         </div>
         <div className="register-row">
           <span>Nonce</span>
-          <strong>{manifest.report.nonce}</strong>
+          <strong>{fixture.report.nonce}</strong>
         </div>
         <div className="register-row">
           <span>Report hash</span>
@@ -200,7 +200,7 @@ function MerchantView() {
       <div className="action-row">
         <button type="button" className="primary-action">
           <Lock aria-hidden="true" />
-          Seal day {manifest.report.dayIndex}
+          Seal day {fixture.report.dayIndex}
         </button>
         <StatusPill icon={CheckCircle} label="Settlement window armed" tone="good" />
       </div>
