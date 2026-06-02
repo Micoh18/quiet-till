@@ -557,6 +557,7 @@ function AuditorView() {
   const authorization = auditor.authorization;
   const receipt = auditor.privateReceipt;
   const disclosureEnvelope = auditor.disclosureEnvelope;
+  const receiptExportHash = judgeEvidence.auditorEvidence.receiptExportHash;
 
   return (
     <section className="view-grid view-auditor" aria-labelledby="auditor-heading">
@@ -646,6 +647,10 @@ function AuditorView() {
           <div>
             <span>Auditor receipt hash</span>
             <code>{display.shortHash(receipt.receiptHash)}</code>
+          </div>
+          <div>
+            <span>Receipt export hash</span>
+            <code>{display.shortHash(receiptExportHash)}</code>
           </div>
           <div>
             <span>Tampered sales hash</span>

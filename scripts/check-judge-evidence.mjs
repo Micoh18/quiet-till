@@ -39,6 +39,10 @@ function main() {
   assert.equal(evidence.auditorEvidence.repaymentAmount, 99);
   assert.equal(evidence.auditorEvidence.outstandingAfter, 9_901);
   assert.equal(
+    evidence.auditorEvidence.receiptExportHash,
+    "0x2f0cb1f94d9d628b3c6c77350608cfce5123435442b3c11ef62bfdedf6bdbcc7"
+  );
+  assert.equal(
     evidence.auditorEvidence.plaintextCommitmentHash,
     "0xda06e5e6268974807a2425dd277a50b37959e5e42f0f8588c1eb5dcaa331bed7"
   );
@@ -83,6 +87,7 @@ function main() {
   assert.equal(evidence.passConditions.plaintextCommitmentBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.auditorEnvelopeBinding, true);
+  assert.equal(evidence.passConditions.auditorReceiptExportAvailable, true);
   assert.equal(evidence.passConditions.hasPrivatePaymentCommitment, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
   assert.equal(evidence.passConditions.lateCureDoesNotLeakSales, true);

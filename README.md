@@ -180,6 +180,18 @@ Check the auditor disclosure envelope:
 npm run disclosure:check
 ```
 
+Print the auditor receipt export bundle:
+
+```bash
+npm run auditor:export
+```
+
+Check the auditor receipt export bundle:
+
+```bash
+npm run auditor:check
+```
+
 Check the judge evidence bundle:
 
 ```bash
@@ -207,6 +219,8 @@ Each decrypted report also consumes a private nonce hash. Reusing the same repor
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 
 `npm run receipt:check` verifies the canonical private receipt domain, receipt hash calculation, and tamper sensitivity. `npm run demo:local` also reconstructs the auditor receipt and asserts that its hash matches the onchain `privateReceiptHash`.
+
+`npm run auditor:export` prints a deterministic auditor receipt export bundle for the demo fixture. It includes the authorized receipt, the disclosure envelope, and an `exportHash` so the auditor can verify that the exported evidence was not altered. `npm run auditor:check` validates the same binding in CI.
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 
