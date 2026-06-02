@@ -46,6 +46,8 @@ Early hackathon MVP with core contracts, a local demo, a BITE report-preparation
 
 The local tests still use encoded plaintext to simulate the post-decryption bytes, but the contract now includes the CTX callback shape required by SKALE: `onDecrypt(bytes[] decryptedArguments, bytes[] plaintextArguments)`. The next integration step is running that path against a live SKALE Programmable Privacy chain.
 
+Private auditor receipts are reconstructed offchain and checked against the onchain `privateReceiptHash`, so the auditor view has a verifiable binding to the settlement without publishing sales.
+
 Decrypt failures can now be marked by the authorized callback without revealing sales data. Failed days keep the encrypted report hash and can be retried through a new settlement request.
 
 The fallback token payment is intentionally public. It is useful for demonstrating repayment movement while confidential tokens remain a separate integration target.
@@ -150,6 +152,12 @@ Check local BITE report envelope generation:
 npm run report:check
 ```
 
+Check private receipt hashing:
+
+```bash
+npm run receipt:check
+```
+
 Run the full local quality gate:
 
 ```bash
@@ -163,6 +171,8 @@ The demo manifest describes contract constructor arguments, setup calls, the enc
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
 
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
+
+`npm run receipt:check` verifies the canonical private receipt domain, receipt hash calculation, and tamper sensitivity. `npm run demo:local` also reconstructs the auditor receipt and asserts that its hash matches the onchain `privateReceiptHash`.
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 
