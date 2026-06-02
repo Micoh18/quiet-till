@@ -28,6 +28,10 @@ contract LoanObserver {
     function recordMissingReport(RevenueLoan loans, uint256 loanId, uint256 dayIndex) external {
         loans.recordMissingReport(loanId, dayIndex);
     }
+
+    function cureMissingReport(RevenueLoan loans, uint256 loanId, uint256 dayIndex) external {
+        loans.cureMissingReport(loanId, dayIndex);
+    }
 }
 
 contract RevenueLoanTest {
@@ -133,6 +137,28 @@ contract RevenueLoanTest {
         require(status == RevenueLoan.LoanStatus.Defaulted, "loan should default");
     }
 
+    function testCuresMissingReportBeforeDefault() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
+        loans.recordMissingReport(LOAN_ID, 5);
+        uint256 missedReportCount = loans.cureMissingReport(LOAN_ID, 5);
+        (uint256 publicMissedReportCount,, RevenueLoan.LoanStatus status) = loans.getPublicCovenantStatus(LOAN_ID);
+
+        require(missedReportCount == 0, "cured count mismatch");
+        require(publicMissedReportCount == 0, "public cured count mismatch");
+        require(status == RevenueLoan.LoanStatus.Active, "loan should remain active after cure");
+    }
+
+    function testRejectsCureWithoutRecordedMissingReport() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
+        try loans.cureMissingReport(LOAN_ID, 5) {
+            revert("expected missing report cure rejection");
+        } catch (bytes memory) {
+            require(true, "empty cure rejected");
+        }
+    }
+
     function testAdminCanSetMissingReportThreshold() public {
         (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
 
@@ -157,6 +183,19 @@ contract RevenueLoanTest {
             revert("expected unauthorized missing report record");
         } catch (bytes memory) {
             require(true, "unauthorized missing report record rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedMissingReportCure() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+        LoanObserver observer = new LoanObserver();
+
+        loans.recordMissingReport(LOAN_ID, 5);
+
+        try observer.cureMissingReport(loans, LOAN_ID, 5) {
+            revert("expected unauthorized missing report cure");
+        } catch (bytes memory) {
+            require(true, "unauthorized missing report cure rejected");
         }
     }
 

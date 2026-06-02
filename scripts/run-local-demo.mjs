@@ -6,6 +6,7 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
+  keccak256,
   parseEventLogs
 } from "viem";
 
@@ -23,6 +24,7 @@ import {
   assertPrivateReceiptHash,
   buildPrivateReceipt
 } from "../lib/private-receipt.mjs";
+import { encodeSalesReportPlaintext } from "../lib/sales-report.mjs";
 
 const roleOrder = [
   "admin",
@@ -331,9 +333,137 @@ async function runLocalDemo() {
     assert.equal(auditorCanView, true);
     assert.equal(decryptedAuditorReceipt.receiptHash, publicDayStatus[2]);
 
-    const missingDayIndex = manifest.privateReport.plaintext.dayIndex + 1;
+    const curedDayIndex = manifest.reportSla.curedDayIndex;
     const latestBlock = await publicClient.getBlock();
-    const missingReportDueAt = latestBlock.timestamp + 60n;
+    const curedReportDueAt = latestBlock.timestamp + BigInt(manifest.reportSla.deadlineGraceSeconds);
+
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "openReportWindow",
+      args: [
+        manifest.privateReport.plaintext.loanId,
+        curedDayIndex,
+        curedReportDueAt
+      ],
+      from: "lender"
+    });
+    await connection.provider.request({
+      method: "evm_increaseTime",
+      params: [manifest.reportSla.deadlineGraceSeconds + 1]
+    });
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "markReportMissing",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex],
+      from: "lender"
+    });
+
+    const markedCureDayStatus = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getPublicDayStatus",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex]
+    });
+    const curedDeadline = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getReportDeadline",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex]
+    });
+    const cureDeadline = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getReportCureDeadline",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex]
+    });
+    const covenantAfterMissing = await readContract({
+      contractName: "RevenueLoan",
+      functionName: "getPublicCovenantStatus",
+      args: [manifest.privateReport.plaintext.loanId]
+    });
+
+    assert.equal(Number(markedCureDayStatus[0]), dayStatus.Missing);
+    assert.equal(markedCureDayStatus[1], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assert.equal(markedCureDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assert.equal(curedDeadline, curedReportDueAt);
+    assert.equal(cureDeadline > curedReportDueAt, true);
+    assert.equal(Number(covenantAfterMissing[0]), 1);
+
+    const curedReportPlaintext = {
+      loanId: manifest.privateReport.plaintext.loanId,
+      merchantId: manifest.privateReport.plaintext.merchantId,
+      dayIndex: curedDayIndex,
+      grossSales: 880,
+      nonce: (BigInt(manifest.privateReport.plaintext.nonce) + 1n).toString()
+    };
+    const encodedCuredReport = encodeSalesReportPlaintext(curedReportPlaintext);
+    const curedEncryptedReport = "0x71756965742d74696c6c2d6c6174652d63757265";
+    const curedReportCommitmentHash = keccak256(encodedCuredReport);
+
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "submitEncryptedReportWithCommitment",
+      args: [
+        manifest.privateReport.plaintext.loanId,
+        curedDayIndex,
+        curedEncryptedReport,
+        curedReportCommitmentHash
+      ],
+      from: "posAgent"
+    });
+
+    const curedRequestReceipt = await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "requestDailySettlement",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex],
+      from: "lender"
+    });
+    const curedRequestedEvents = parseEventLogs({
+      abi: deployed.DailySettlementWindow.abi,
+      eventName: "DailySettlementRequested",
+      logs: curedRequestReceipt.logs
+    });
+
+    assert.equal(curedRequestedEvents.length, 1, "expected one cured settlement request event");
+
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "onDecrypt",
+      args: [curedRequestedEvents[0].args.requestId, encodedCuredReport],
+      from: "decryptCallback"
+    });
+
+    const curedDayStatus = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getPublicDayStatus",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex]
+    });
+    const curedCovenantStatus = await readContract({
+      contractName: "RevenueLoan",
+      functionName: "getPublicCovenantStatus",
+      args: [manifest.privateReport.plaintext.loanId]
+    });
+    const outstandingAfterCure = await readContract({
+      contractName: "RevenueLoan",
+      functionName: "getOutstanding",
+      args: [manifest.privateReport.plaintext.loanId],
+      from: "lender"
+    });
+    const curedReportCureDeadline = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getReportCureDeadline",
+      args: [manifest.privateReport.plaintext.loanId, curedDayIndex]
+    });
+
+    const curedRepaymentAmount = Math.floor((curedReportPlaintext.grossSales * demo.loan.repaymentBps) / 10_000);
+
+    assert.equal(Number(curedDayStatus[0]), dayStatus.Settled);
+    assert.notEqual(curedDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assert.equal(Number(curedCovenantStatus[0]), manifest.reportSla.missedReportCountAfterCure);
+    assert.equal(Number(curedCovenantStatus[2]), loanStatus.Active);
+    assert.equal(Number(outstandingAfterCure), manifest.expectedSettlement.outstandingAfter - curedRepaymentAmount);
+    assert.equal(curedReportCureDeadline, 0n);
+
+    const missingDayIndex = manifest.reportSla.missingDayIndex;
+    const latestAfterCure = await publicClient.getBlock();
+    const missingReportDueAt = latestAfterCure.timestamp + BigInt(manifest.reportSla.deadlineGraceSeconds);
 
     await writeContract({
       contractName: "DailySettlementWindow",
@@ -347,7 +477,7 @@ async function runLocalDemo() {
     });
     await connection.provider.request({
       method: "evm_increaseTime",
-      params: [61]
+      params: [manifest.reportSla.deadlineGraceSeconds + 1]
     });
     await writeContract({
       contractName: "DailySettlementWindow",
@@ -372,8 +502,9 @@ async function runLocalDemo() {
     assert.equal(missingDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
     assert.equal(missingDeadline, missingReportDueAt);
 
-    const defaultTriggerDayIndex = missingDayIndex + 1;
-    const defaultTriggerDueAt = missingReportDueAt + 60n;
+    const defaultTriggerDayIndex = manifest.reportSla.defaultTriggerDayIndex;
+    const latestBeforeDefault = await publicClient.getBlock();
+    const defaultTriggerDueAt = latestBeforeDefault.timestamp + BigInt(manifest.reportSla.deadlineGraceSeconds);
 
     await writeContract({
       contractName: "DailySettlementWindow",
@@ -387,7 +518,7 @@ async function runLocalDemo() {
     });
     await connection.provider.request({
       method: "evm_increaseTime",
-      params: [61]
+      params: [manifest.reportSla.deadlineGraceSeconds + 1]
     });
     await writeContract({
       contractName: "DailySettlementWindow",
@@ -431,6 +562,11 @@ async function runLocalDemo() {
         auditorDisclosureEnvelope
       },
       complianceSla: {
+        curedDayIndex,
+        curedReportStatus: "Cured",
+        curedReportDeadline: curedReportDueAt,
+        cureDeadline,
+        missedReportCountAfterCure: Number(curedCovenantStatus[0]),
         missingDayIndex,
         missingReportStatus: "Missing",
         missingReportDueAt,

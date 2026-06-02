@@ -69,11 +69,17 @@ function main() {
     transcript.privateMode.visibleToAuditor.privateReceipt.receiptHash,
     transcript.privateMode.visibleToMarket.privateReceiptHash
   );
-  assert.equal(transcript.complianceSla.missingDayIndex, 5);
-  assert.equal(transcript.complianceSla.defaultTriggerDayIndex, 6);
+  assert.equal(transcript.complianceSla.curedDayIndex, 5);
+  assert.equal(transcript.complianceSla.missingDayIndex, 6);
+  assert.equal(transcript.complianceSla.defaultTriggerDayIndex, 7);
   assert.equal(transcript.complianceSla.missingStatus, "Missing");
+  assert.equal(transcript.complianceSla.cureStatus, "Cured");
+  assert.equal(transcript.complianceSla.curePeriodSeconds, 86_400);
+  assert.equal(transcript.complianceSla.missedReportCountAfterCure, 0);
   assert.equal(transcript.complianceSla.defaultAfterMissedReports, 2);
   assert.equal(transcript.complianceSla.loanStatusAfterDefaultTrigger, "Defaulted");
+  assert.equal(transcript.complianceSla.lateCureLeaksGrossSales, false);
+  assert.equal(transcript.complianceSla.lateCureCreatesReceiptForMarket, false);
   assert.equal(transcript.complianceSla.missingReportLeaksGrossSales, false);
   assert.equal(transcript.complianceSla.missingReportCreatesReceipt, false);
   assert.notEqual(
@@ -91,15 +97,16 @@ function main() {
 
   assert.deepEqual(
     flow.map((step) => step.key),
-    ["public-leak", "encrypted-report", "ctx-settlement", "lender-receipt", "auditor-proof"]
+    ["public-leak", "encrypted-report", "ctx-settlement", "late-cure", "lender-receipt", "auditor-proof"]
   );
   assert.deepEqual(
     flow.map((step) => step.view),
-    ["public", "merchant", "merchant", "lender", "auditor"]
+    ["public", "merchant", "merchant", "merchant", "lender", "auditor"]
   );
   assert.equal(flow[0].tone, "danger");
-  assert.equal(flow[3].event.includes("Lender sees 99 qUSD"), true);
-  assert.equal(flow[4].event.includes("tampered sales"), true);
+  assert.equal(flow[3].event.includes("cured inside 24h"), true);
+  assert.equal(flow[4].event.includes("Lender sees 99 qUSD"), true);
+  assert.equal(flow[5].event.includes("tampered sales"), true);
 
   console.log("Demo transcript check passed.");
 }

@@ -41,6 +41,7 @@ contract RevenueLoan {
     error LoanNotCreated();
     error LoanNotPending();
     error LoanNotActive();
+    error MissingReportNotRecorded();
 
     event AdminTransferred(address indexed previousAdmin, address indexed nextAdmin);
     event SettlementWindowUpdated(address indexed previousSettlementWindow, address indexed nextSettlementWindow);
@@ -66,6 +67,7 @@ contract RevenueLoan {
         uint256 missedReportCount,
         uint256 maxMissedReportsBeforeDefault
     );
+    event MissingReportCured(uint256 indexed loanId, uint256 indexed dayIndex, uint256 missedReportCount);
     event LoanRepaid(uint256 indexed loanId);
     event LoanDefaulted(uint256 indexed loanId);
 
@@ -247,6 +249,27 @@ contract RevenueLoan {
 
             emit LoanDefaulted(loanId);
         }
+    }
+
+    function cureMissingReport(uint256 loanId, uint256 dayIndex)
+        external
+        onlySettlementWindow
+        returns (uint256 missedReportCount)
+    {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (loan.status != LoanStatus.Active) {
+            revert LoanNotActive();
+        }
+
+        if (loan.missedReportCount == 0) {
+            revert MissingReportNotRecorded();
+        }
+
+        loan.missedReportCount -= 1;
+        missedReportCount = loan.missedReportCount;
+
+        emit MissingReportCured(loanId, dayIndex, missedReportCount);
     }
 
     function previewRepayment(uint256 loanId, uint256 grossSales)

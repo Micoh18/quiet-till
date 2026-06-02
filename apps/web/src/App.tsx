@@ -221,7 +221,7 @@ function ScenarioRail({
 
 function MerchantView({ activeStep, onAdvance }: { activeStep: StepKey; onAdvance: () => void }) {
   const actionLabel =
-    activeStep === "ctx-settlement"
+    activeStep === "ctx-settlement" || activeStep === "late-cure"
       ? "Open lender receipt"
       : activeStep === "encrypted-report"
         ? "Request CTX close"
@@ -408,6 +408,13 @@ function JudgeEvidencePanel() {
       passed: judgeEvidence.passConditions.tamperSensitivity
     },
     {
+      label: "Late cure sealed",
+      passed:
+        judgeEvidence.passConditions.lateCureDoesNotLeakSales &&
+        judgeEvidence.passConditions.lateCureDoesNotCreateMarketReceipt &&
+        judgeEvidence.passConditions.lateCureClearsMissingStrike
+    },
+    {
       label: "Missing day sealed",
       passed:
         judgeEvidence.passConditions.missingReportDoesNotLeakSales &&
@@ -448,14 +455,17 @@ function JudgeEvidencePanel() {
           <span>Report covenant</span>
           <strong>{judgeEvidence.complianceSla.loanStatusAfterDefaultTrigger}</strong>
           <small>
-            {judgeEvidence.complianceSla.defaultAfterMissedReports} missed days, no sales leak
+            Cure day {judgeEvidence.complianceSla.curedDayIndex}, then{" "}
+            {judgeEvidence.complianceSla.defaultAfterMissedReports} misses default
           </small>
         </div>
       </div>
       <div className="condition-row">
         {conditions.map((condition) => (
           <span className="condition-pill" key={condition.label}>
-            {condition.label === "Missing day sealed" || condition.label === "Covenant defaults" ? (
+            {condition.label === "Late cure sealed" ||
+            condition.label === "Missing day sealed" ||
+            condition.label === "Covenant defaults" ? (
               <Clock aria-hidden="true" />
             ) : (
               <CheckCircle aria-hidden="true" />

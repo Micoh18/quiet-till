@@ -59,6 +59,10 @@ contract SettlementActor {
         window.setMaxGrossSales(nextMaxGrossSales);
     }
 
+    function setCurePeriodSeconds(DailySettlementWindow window, uint256 nextCurePeriodSeconds) external {
+        window.setCurePeriodSeconds(nextCurePeriodSeconds);
+    }
+
     function setConfidentialPaymentRail(DailySettlementWindow window, address nextConfidentialPaymentRail) external {
         window.setConfidentialPaymentRail(nextConfidentialPaymentRail);
     }
@@ -252,20 +256,38 @@ contract DailySettlementWindowTest {
         require(encryptedReportHash == bytes32(0), "missing day should not have encrypted report");
         require(privateReceiptHash == bytes32(0), "missing day should not have receipt");
         require(fixture.window.getReportDeadline(LOAN_ID, DAY_INDEX) == dueAt, "missing deadline mismatch");
+        require(
+            fixture.window.getReportCureDeadline(LOAN_ID, DAY_INDEX) == block.timestamp + 1 days,
+            "cure deadline mismatch"
+        );
         require(fixture.loan.getOutstanding(LOAN_ID) == 10_000, "missing report should not repay");
     }
 
-    function testRejectsReportAfterDayMarkedMissing() public {
+    function testLateReportCuresMissingStrikeAfterPrivateSettlement() public {
         Fixture memory fixture = _deployFixture();
+        bytes memory lateReport = _salesReport(1_240, 99);
 
         fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, block.timestamp);
         fixture.window.markReportMissing(LOAN_ID, DAY_INDEX);
+        fixture.window.submitEncryptedReportWithCommitment(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT, keccak256(lateReport));
 
-        try fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT) {
-            revert("expected missing day rejection");
-        } catch (bytes memory) {
-            require(true, "missing day report rejected");
-        }
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(requestId, lateReport);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            bytes32 encryptedReportHash,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+        (uint256 missedReportCount,, RevenueLoan.LoanStatus loanStatus) = fixture.loan.getPublicCovenantStatus(LOAN_ID);
+
+        require(status == DailySettlementWindow.DayStatus.Settled, "late report should settle");
+        require(encryptedReportHash == keccak256(ENCRYPTED_REPORT), "late encrypted hash mismatch");
+        require(privateReceiptHash != bytes32(0), "late report should set receipt");
+        require(missedReportCount == 0, "late report should cure missing strike");
+        require(loanStatus == RevenueLoan.LoanStatus.Active, "loan should stay active after cure");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "late report outstanding mismatch");
+        require(fixture.window.getReportCureDeadline(LOAN_ID, DAY_INDEX) == 0, "cure deadline should clear");
     }
 
     function testSecondMissingReportDefaultsLoan() public {
@@ -294,6 +316,25 @@ contract DailySettlementWindowTest {
         require(missedReportCount == 2, "missing report count mismatch");
         require(maxMissedReportsBeforeDefault == 2, "missing report threshold mismatch");
         require(loanStatus == RevenueLoan.LoanStatus.Defaulted, "loan should default");
+    }
+
+    function testAdminCanUpdateCurePeriod() public {
+        Fixture memory fixture = _deployFixture();
+
+        fixture.window.setCurePeriodSeconds(2 days);
+
+        require(fixture.window.curePeriodSeconds() == 2 days, "cure period mismatch");
+    }
+
+    function testRejectsUnauthorizedCurePeriodUpdate() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor unauthorized = new SettlementActor();
+
+        try unauthorized.setCurePeriodSeconds(fixture.window, 2 days) {
+            revert("expected unauthorized cure period update");
+        } catch (bytes memory) {
+            require(true, "unauthorized cure period update rejected");
+        }
     }
 
     function testRejectsUnauthorizedReportWindowOpen() public {

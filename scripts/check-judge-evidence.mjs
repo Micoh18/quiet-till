@@ -7,10 +7,10 @@ function main() {
   assert.equal(evidence.name, "Quiet Till Judge Evidence Bundle");
   assert.equal(evidence.version, 1);
   assert.deepEqual(evidence.tracks, ["Compliant Onchain Finance", "Private Markets"]);
-  assert.equal(evidence.demoMinuteFlow.length, 5);
+  assert.equal(evidence.demoMinuteFlow.length, 6);
   assert.deepEqual(
     evidence.demoMinuteFlow.map((step) => step.key),
-    ["public-leak", "encrypted-report", "ctx-settlement", "lender-receipt", "auditor-proof"]
+    ["public-leak", "encrypted-report", "ctx-settlement", "late-cure", "lender-receipt", "auditor-proof"]
   );
 
   assert.equal(evidence.publicObserver.publicMode.visibleGrossSales, 1_240);
@@ -57,11 +57,17 @@ function main() {
     evidence.tamperCheck.tamperedReceiptHash,
     evidence.publicObserver.quietTillMode.privateReceiptHash
   );
-  assert.equal(evidence.complianceSla.missingDayIndex, 5);
-  assert.equal(evidence.complianceSla.defaultTriggerDayIndex, 6);
+  assert.equal(evidence.complianceSla.curedDayIndex, 5);
+  assert.equal(evidence.complianceSla.missingDayIndex, 6);
+  assert.equal(evidence.complianceSla.defaultTriggerDayIndex, 7);
   assert.equal(evidence.complianceSla.missingStatus, "Missing");
+  assert.equal(evidence.complianceSla.cureStatus, "Cured");
+  assert.equal(evidence.complianceSla.curePeriodSeconds, 86_400);
+  assert.equal(evidence.complianceSla.missedReportCountAfterCure, 0);
   assert.equal(evidence.complianceSla.defaultAfterMissedReports, 2);
   assert.equal(evidence.complianceSla.loanStatusAfterDefaultTrigger, "Defaulted");
+  assert.equal(evidence.complianceSla.lateCureLeaksGrossSales, false);
+  assert.equal(evidence.complianceSla.lateCureCreatesReceiptForMarket, false);
   assert.equal(evidence.complianceSla.missingReportLeaksGrossSales, false);
   assert.equal(evidence.complianceSla.missingReportCreatesReceipt, false);
 
@@ -79,6 +85,9 @@ function main() {
   assert.equal(evidence.passConditions.auditorEnvelopeBinding, true);
   assert.equal(evidence.passConditions.hasPrivatePaymentCommitment, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
+  assert.equal(evidence.passConditions.lateCureDoesNotLeakSales, true);
+  assert.equal(evidence.passConditions.lateCureDoesNotCreateMarketReceipt, true);
+  assert.equal(evidence.passConditions.lateCureClearsMissingStrike, true);
   assert.equal(evidence.passConditions.missingReportDoesNotLeakSales, true);
   assert.equal(evidence.passConditions.missingReportDoesNotCreateReceipt, true);
   assert.equal(evidence.passConditions.repeatedMissingReportsDefaultLoan, true);

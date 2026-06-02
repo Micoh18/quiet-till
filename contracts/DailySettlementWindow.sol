@@ -20,6 +20,7 @@ interface ISettlementRevenueLoan {
     function recordMissingReport(uint256 loanId, uint256 dayIndex)
         external
         returns (uint256 missedReportCount, bool defaulted);
+    function cureMissingReport(uint256 loanId, uint256 dayIndex) external returns (uint256 missedReportCount);
 }
 
 interface ISettlementAuditorDisclosure {
@@ -70,6 +71,8 @@ contract DailySettlementWindow {
         uint256 submittedAt;
         uint256 settledAt;
         uint256 dueAt;
+        bool missingReportRecorded;
+        uint256 cureExpiresAt;
     }
 
     struct PendingDecrypt {
@@ -102,6 +105,8 @@ contract DailySettlementWindow {
     error ReportWindowNotOpened();
     error ReportDeadlineActive();
     error ReportDeadlineExpired();
+    error InvalidCurePeriod();
+    error CureWindowExpired();
     error InvalidCTXCallbackGas();
     error InvalidCTXArguments();
     error InvalidCTXCallbackSender();
@@ -117,6 +122,7 @@ contract DailySettlementWindow {
         address indexed nextConfidentialPaymentRail
     );
     event MaxGrossSalesUpdated(uint256 previousMaxGrossSales, uint256 nextMaxGrossSales);
+    event CurePeriodUpdated(uint256 previousCurePeriodSeconds, uint256 nextCurePeriodSeconds);
     event ReportWindowOpened(
         uint256 indexed loanId,
         uint256 indexed dayIndex,
@@ -148,10 +154,19 @@ contract DailySettlementWindow {
         uint256 indexed loanId,
         uint256 indexed dayIndex,
         uint256 indexed merchantId,
-        uint256 dueAt
+        uint256 dueAt,
+        uint256 cureExpiresAt
     );
+    event LateEncryptedReportSubmitted(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        uint256 indexed merchantId,
+        bytes32 encryptedReportHash
+    );
+    event MissingReportCured(uint256 indexed loanId, uint256 indexed dayIndex, uint256 missedReportCount);
 
     uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
+    uint256 public constant DEFAULT_CURE_PERIOD_SECONDS = 1 days;
     address public constant DEFAULT_CTX_SUBMITTER = address(0x1B);
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
     bytes32 private constant PAYMENT_COMMITMENT_DOMAIN =
@@ -161,6 +176,7 @@ contract DailySettlementWindow {
     address public decryptCallback;
     address public ctxSubmitter = DEFAULT_CTX_SUBMITTER;
     uint256 public maxGrossSales = DEFAULT_MAX_GROSS_SALES;
+    uint256 public curePeriodSeconds = DEFAULT_CURE_PERIOD_SECONDS;
     ISettlementMerchantRegistry public immutable merchantRegistry;
     ISettlementRevenueLoan public immutable revenueLoan;
     ISettlementAuditorDisclosure public immutable auditorDisclosure;
@@ -264,6 +280,17 @@ contract DailySettlementWindow {
         emit MaxGrossSalesUpdated(previousMaxGrossSales, nextMaxGrossSales);
     }
 
+    function setCurePeriodSeconds(uint256 nextCurePeriodSeconds) external onlyAdmin {
+        if (nextCurePeriodSeconds == 0) {
+            revert InvalidCurePeriod();
+        }
+
+        uint256 previousCurePeriodSeconds = curePeriodSeconds;
+        curePeriodSeconds = nextCurePeriodSeconds;
+
+        emit CurePeriodUpdated(previousCurePeriodSeconds, nextCurePeriodSeconds);
+    }
+
     function submitEncryptedReport(uint256 loanId, uint256 dayIndex, bytes calldata encryptedReport) external {
         _submitEncryptedReport(loanId, dayIndex, encryptedReport, bytes32(0));
     }
@@ -296,7 +323,9 @@ contract DailySettlementWindow {
             status: DayStatus.Open,
             submittedAt: 0,
             settledAt: 0,
-            dueAt: dueAt
+            dueAt: dueAt,
+            missingReportRecorded: false,
+            cureExpiresAt: 0
         });
 
         emit ReportWindowOpened(loanId, dayIndex, merchantId, dueAt);
@@ -408,10 +437,14 @@ contract DailySettlementWindow {
             revert ReportDeadlineActive();
         }
 
+        uint256 cureExpiresAt = block.timestamp + curePeriodSeconds;
+
         day.status = DayStatus.Missing;
+        day.missingReportRecorded = true;
+        day.cureExpiresAt = cureExpiresAt;
         revenueLoan.recordMissingReport(loanId, dayIndex);
 
-        emit DailyReportMissing(loanId, dayIndex, day.merchantId, day.dueAt);
+        emit DailyReportMissing(loanId, dayIndex, day.merchantId, day.dueAt, cureExpiresAt);
     }
 
     function getPublicDayStatus(uint256 loanId, uint256 dayIndex)
@@ -428,6 +461,10 @@ contract DailySettlementWindow {
         return _settlementDays[loanId][dayIndex].dueAt;
     }
 
+    function getReportCureDeadline(uint256 loanId, uint256 dayIndex) external view returns (uint256) {
+        return _settlementDays[loanId][dayIndex].cureExpiresAt;
+    }
+
     function _submitEncryptedReport(
         uint256 loanId,
         uint256 dayIndex,
@@ -439,17 +476,24 @@ contract DailySettlementWindow {
         }
 
         SettlementDay storage day = _settlementDays[loanId][dayIndex];
+        bool isCuringMissingReport = day.status == DayStatus.Missing;
 
-        if (day.status != DayStatus.Open) {
+        if (day.status != DayStatus.Open && !isCuringMissingReport) {
             revert DayAlreadyReported();
         }
 
-        if (day.dueAt != 0 && block.timestamp > day.dueAt) {
+        if (isCuringMissingReport) {
+            if (block.timestamp > day.cureExpiresAt) {
+                revert CureWindowExpired();
+            }
+        } else if (day.dueAt != 0 && block.timestamp > day.dueAt) {
             revert ReportDeadlineExpired();
         }
 
         uint256 merchantId = revenueLoan.merchantIdFor(loanId);
         uint256 dueAt = day.dueAt;
+        bool missingReportRecorded = day.missingReportRecorded;
+        uint256 cureExpiresAt = day.cureExpiresAt;
 
         if (!merchantRegistry.isPosAgentFor(merchantId, msg.sender)) {
             revert Unauthorized();
@@ -468,10 +512,16 @@ contract DailySettlementWindow {
             status: DayStatus.ReportSubmitted,
             submittedAt: block.timestamp,
             settledAt: 0,
-            dueAt: dueAt
+            dueAt: dueAt,
+            missingReportRecorded: missingReportRecorded,
+            cureExpiresAt: cureExpiresAt
         });
 
         emit EncryptedReportSubmitted(loanId, dayIndex, merchantId, encryptedReportHash);
+
+        if (isCuringMissingReport) {
+            emit LateEncryptedReportSubmitted(loanId, dayIndex, merchantId, encryptedReportHash);
+        }
     }
 
     function _openDecryptRequest(uint256 loanId, uint256 dayIndex, address requester) private returns (bytes32 requestId) {
@@ -552,11 +602,19 @@ contract DailySettlementWindow {
 
         uint256 repaymentAmount = revenueLoan.previewRepayment(report.loanId, report.grossSales);
         bytes32 privateReceiptHash = _receiptHash(report, repaymentAmount);
+        bool shouldCureMissingReport = day.missingReportRecorded;
 
         day.privateReceiptHash = privateReceiptHash;
         day.status = DayStatus.Settled;
         day.settledAt = block.timestamp;
+        day.missingReportRecorded = false;
+        day.cureExpiresAt = 0;
         delete pendingDecrypts[requestId];
+
+        if (shouldCureMissingReport) {
+            uint256 missedReportCount = revenueLoan.cureMissingReport(report.loanId, report.dayIndex);
+            emit MissingReportCured(report.loanId, report.dayIndex, missedReportCount);
+        }
 
         revenueLoan.applyRepayment(report.loanId, report.grossSales, report.dayIndex, privateReceiptHash);
         _registerConfidentialPaymentCommitment(report, repaymentAmount, privateReceiptHash);
