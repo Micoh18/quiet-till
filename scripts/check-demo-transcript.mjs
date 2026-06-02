@@ -17,11 +17,29 @@ function main() {
     transcript.privateMode.visibleToMarket.encryptedReportHash,
     "0xb78c4790e0235c77f196a6ff65c1032eda11a10562d7664de22fd59a78b52af8"
   );
+  assert.equal(
+    transcript.privateMode.visibleToMarket.privateReceiptHash,
+    "0x8e05af5fbae10a8897a460032a3d9684bffe2ec13e35c8b0ceb247411a0de8b7"
+  );
   assert.equal(transcript.privateMode.visibleToAuditor.grossSales, 1_240);
   assert.equal(transcript.privateMode.visibleToAuditor.repaymentAmount, 99);
+  assert.equal(transcript.privateMode.visibleToAuditor.outstandingBefore, 10_000);
   assert.equal(transcript.privateMode.visibleToAuditor.outstandingAfter, 9_901);
+  assert.equal(transcript.privateMode.visibleToAuditor.receiptHashVerified, true);
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.privateReceipt.receiptHash,
+    transcript.privateMode.visibleToMarket.privateReceiptHash
+  );
+  assert.notEqual(
+    transcript.privateMode.visibleToAuditor.tamperedGrossSalesReceiptHash,
+    transcript.privateMode.visibleToMarket.privateReceiptHash
+  );
   assert.equal(transcript.expectedDelta.publicModeLeaksGrossSales, true);
   assert.equal(transcript.expectedDelta.privateModeLeaksGrossSales, false);
+  assert.equal(
+    transcript.expectedDelta.privateReceiptHash,
+    transcript.privateMode.visibleToMarket.privateReceiptHash
+  );
 
   console.log("Demo transcript check passed.");
 }
