@@ -13,10 +13,12 @@
     "demo:manifest": "node scripts/demo-manifest.mjs",
     "demo:transcript": "node scripts/demo-transcript.mjs",
     "demo:local": "npm run build && node scripts/run-local-demo.mjs",
+    "deploy:demo": "npm run build && node scripts/deploy-demo.mjs",
+    "deploy:check": "npm run build && node scripts/deploy-demo.mjs --dry-run --quiet",
     "demo:check": "npm run build && node scripts/check-demo-manifest.mjs",
     "local:check": "node scripts/run-local-demo.mjs --quiet",
     "transcript:check": "node scripts/check-demo-transcript.mjs",
-    "verify": "npm test && npm run web:build && npm run demo:check && npm run local:check && npm run transcript:check && npm audit --audit-level=high"
+    "verify": "npm test && npm run web:build && npm run demo:check && npm run deploy:check && npm run local:check && npm run transcript:check && npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
