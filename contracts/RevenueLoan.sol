@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 interface IMerchantRegistry {
     function ownerFor(uint256 merchantId) external view returns (address);
+    function auditorFor(uint256 merchantId) external view returns (address);
     function isMerchantActive(uint256 merchantId) external view returns (bool);
 }
 
@@ -57,7 +58,7 @@ contract RevenueLoan {
     address public settlementWindow;
     IMerchantRegistry public immutable merchantRegistry;
 
-    mapping(uint256 => LoanTerms) public loans;
+    mapping(uint256 => LoanTerms) private _loans;
 
     modifier onlyAdmin() {
         if (msg.sender != admin) {
@@ -143,7 +144,7 @@ contract RevenueLoan {
             revert InvalidMerchant();
         }
 
-        loans[loanId] = LoanTerms({
+        _loans[loanId] = LoanTerms({
             loanId: loanId,
             merchantId: merchantId,
             lender: lender,
@@ -182,7 +183,7 @@ contract RevenueLoan {
             revert LoanNotActive();
         }
 
-        repaymentAmount = previewRepayment(loanId, grossSales);
+        repaymentAmount = _previewRepayment(loan, grossSales);
         loan.outstanding -= repaymentAmount;
 
         emit RepaymentApplied(loanId, dayIndex, privateReceiptHash);
@@ -193,16 +194,49 @@ contract RevenueLoan {
         }
     }
 
-    function previewRepayment(uint256 loanId, uint256 grossSales) public view returns (uint256) {
-        LoanTerms storage loan = _createdLoan(loanId);
-
-        uint256 rawRepayment = (grossSales * loan.repaymentBps) / 10_000;
-
-        return _min(rawRepayment, _min(loan.maxDailyRepayment, loan.outstanding));
+    function previewRepayment(uint256 loanId, uint256 grossSales)
+        external
+        view
+        onlySettlementWindow
+        returns (uint256)
+    {
+        return _previewRepayment(_createdLoan(loanId), grossSales);
     }
 
     function getOutstanding(uint256 loanId) external view returns (uint256) {
-        return _createdLoan(loanId).outstanding;
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (!_canViewPrivateLoan(loan, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        return loan.outstanding;
+    }
+
+    function getAuthorizedLoanSnapshot(uint256 loanId) external view returns (LoanTerms memory) {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (!_canViewPrivateLoan(loan, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        return loan;
+    }
+
+    function getPublicLoanStatus(uint256 loanId)
+        external
+        view
+        returns (
+            uint256 merchantId,
+            uint256 principal,
+            uint16 repaymentBps,
+            uint256 maxDailyRepayment,
+            LoanStatus status
+        )
+    {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        return (loan.merchantId, loan.principal, loan.repaymentBps, loan.maxDailyRepayment, loan.status);
     }
 
     function getStatus(uint256 loanId) external view returns (LoanStatus) {
@@ -222,7 +256,7 @@ contract RevenueLoan {
     }
 
     function _createdLoan(uint256 loanId) private view returns (LoanTerms storage loan) {
-        loan = loans[loanId];
+        loan = _loans[loanId];
 
         if (loan.loanId == 0) {
             revert LoanNotCreated();
@@ -230,7 +264,18 @@ contract RevenueLoan {
     }
 
     function _loanExists(uint256 loanId) private view returns (bool) {
-        return loans[loanId].loanId != 0;
+        return _loans[loanId].loanId != 0;
+    }
+
+    function _previewRepayment(LoanTerms storage loan, uint256 grossSales) private view returns (uint256) {
+        uint256 rawRepayment = (grossSales * loan.repaymentBps) / 10_000;
+
+        return _min(rawRepayment, _min(loan.maxDailyRepayment, loan.outstanding));
+    }
+
+    function _canViewPrivateLoan(LoanTerms storage loan, address viewer) private view returns (bool) {
+        return viewer == admin || viewer == settlementWindow || viewer == loan.lender || viewer == loan.borrower
+            || viewer == merchantRegistry.auditorFor(loan.merchantId);
     }
 
     function _min(uint256 left, uint256 right) private pure returns (uint256) {

@@ -4,6 +4,28 @@ pragma solidity ^0.8.28;
 import "./MerchantRegistry.sol";
 import "./RevenueLoan.sol";
 
+contract LoanObserver {
+    function getOutstanding(RevenueLoan loans, uint256 loanId) external view returns (uint256) {
+        return loans.getOutstanding(loanId);
+    }
+
+    function getAuthorizedLoanSnapshot(RevenueLoan loans, uint256 loanId)
+        external
+        view
+        returns (RevenueLoan.LoanTerms memory)
+    {
+        return loans.getAuthorizedLoanSnapshot(loanId);
+    }
+
+    function previewRepayment(RevenueLoan loans, uint256 loanId, uint256 grossSales)
+        external
+        view
+        returns (uint256)
+    {
+        return loans.previewRepayment(loanId, grossSales);
+    }
+}
+
 contract RevenueLoanTest {
     uint256 private constant MERCHANT_ID = 101;
     uint256 private constant LOAN_ID = 1;
@@ -15,24 +37,32 @@ contract RevenueLoanTest {
     function testCreatesLoanForRegisteredMerchant() public {
         (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
 
+        RevenueLoan.LoanTerms memory loan = loans.getAuthorizedLoanSnapshot(LOAN_ID);
+
+        require(loan.loanId == LOAN_ID, "loan id mismatch");
+        require(loan.merchantId == MERCHANT_ID, "merchant id mismatch");
+        require(loan.lender == LENDER, "lender mismatch");
+        require(loan.borrower == MERCHANT_OWNER, "borrower mismatch");
+        require(loan.principal == 10_000, "principal mismatch");
+        require(loan.outstanding == 10_000, "outstanding mismatch");
+        require(loan.repaymentBps == 800, "repayment bps mismatch");
+        require(loan.maxDailyRepayment == 500, "daily cap mismatch");
+        require(loan.status == RevenueLoan.LoanStatus.Active, "loan not active");
+    }
+
+    function testPublicLoanStatusDoesNotExposeOutstanding() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
         (
-            uint256 loanId,
             uint256 merchantId,
-            address lender,
-            address borrower,
             uint256 principal,
-            uint256 outstanding,
             uint16 repaymentBps,
             uint256 maxDailyRepayment,
             RevenueLoan.LoanStatus status
-        ) = loans.loans(LOAN_ID);
+        ) = loans.getPublicLoanStatus(LOAN_ID);
 
-        require(loanId == LOAN_ID, "loan id mismatch");
         require(merchantId == MERCHANT_ID, "merchant id mismatch");
-        require(lender == LENDER, "lender mismatch");
-        require(borrower == MERCHANT_OWNER, "borrower mismatch");
         require(principal == 10_000, "principal mismatch");
-        require(outstanding == 10_000, "outstanding mismatch");
         require(repaymentBps == 800, "repayment bps mismatch");
         require(maxDailyRepayment == 500, "daily cap mismatch");
         require(status == RevenueLoan.LoanStatus.Active, "loan not active");
@@ -72,6 +102,39 @@ contract RevenueLoanTest {
         require(repayment == 120, "final repayment mismatch");
         require(loans.getOutstanding(LOAN_ID) == 0, "outstanding should be zero");
         require(loans.getStatus(LOAN_ID) == RevenueLoan.LoanStatus.Repaid, "loan should be repaid");
+    }
+
+    function testRejectsUnauthorizedOutstandingRead() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+        LoanObserver observer = new LoanObserver();
+
+        try observer.getOutstanding(loans, LOAN_ID) {
+            revert("expected unauthorized outstanding read");
+        } catch (bytes memory) {
+            require(true, "unauthorized outstanding read rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedPrivateSnapshotRead() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+        LoanObserver observer = new LoanObserver();
+
+        try observer.getAuthorizedLoanSnapshot(loans, LOAN_ID) {
+            revert("expected unauthorized private snapshot read");
+        } catch (bytes memory) {
+            require(true, "unauthorized private snapshot read rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedRepaymentPreview() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+        LoanObserver observer = new LoanObserver();
+
+        try observer.previewRepayment(loans, LOAN_ID, 1_240) {
+            revert("expected unauthorized repayment preview");
+        } catch (bytes memory) {
+            require(true, "unauthorized repayment preview rejected");
+        }
     }
 
     function testRejectsBorrowerThatDoesNotOwnMerchant() public {

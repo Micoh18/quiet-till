@@ -150,14 +150,15 @@ async function runLocalDemo() {
       return publicClient.waitForTransactionReceipt({ hash });
     }
 
-    function readContract({ contractName, functionName, args = [] }) {
+    function readContract({ contractName, functionName, args = [], from }) {
       const contract = deployed[contractName];
 
       return publicClient.readContract({
         address: contract.address,
         abi: contract.abi,
         functionName,
-        args
+        args,
+        account: from === undefined ? undefined : actorOverrides[from]
       });
     }
 
@@ -241,7 +242,8 @@ async function runLocalDemo() {
     const outstanding = await readContract({
       contractName: "RevenueLoan",
       functionName: "getOutstanding",
-      args: [manifest.privateReport.plaintext.loanId]
+      args: [manifest.privateReport.plaintext.loanId],
+      from: "lender"
     });
     const lenderBalance = await readContract({
       contractName: "MockPaymentToken",
