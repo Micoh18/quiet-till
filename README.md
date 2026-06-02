@@ -48,6 +48,8 @@ The local tests still use encoded plaintext to simulate the post-decryption byte
 
 Private auditor receipts are reconstructed offchain and checked against the onchain `privateReceiptHash`, so the auditor view has a verifiable binding to the settlement without publishing sales.
 
+The auditor path now also builds a local AES-GCM disclosure envelope around the private receipt. This models the fallback described in the spec when SKALE re-encryption is not available: the public surface gets ciphertext and hashes, while the authorized auditor can open the receipt in the demo. It is labeled as a fallback, not as production re-encryption.
+
 Decrypt failures can now be marked by the authorized callback without revealing sales data. Failed days keep the encrypted report hash and can be retried through a new settlement request.
 
 The fallback token payment is intentionally public. It is useful for demonstrating repayment movement while confidential tokens remain a separate integration target.
@@ -162,6 +164,12 @@ Check private receipt hashing:
 
 ```bash
 npm run receipt:check
+```
+
+Check the auditor disclosure envelope:
+
+```bash
+npm run disclosure:check
 ```
 
 Check the judge evidence bundle:

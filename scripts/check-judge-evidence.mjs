@@ -39,6 +39,15 @@ function main() {
     "0xda06e5e6268974807a2425dd277a50b37959e5e42f0f8588c1eb5dcaa331bed7"
   );
   assert.equal(evidence.auditorEvidence.plaintextCommitmentMatches, true);
+  assert.equal(evidence.auditorDisclosureEnvelope.mode, "local-aes-gcm-reencryption-fallback");
+  assert.equal(evidence.auditorDisclosureEnvelope.recipient, evidence.auditorEvidence.authorization.auditor);
+  assert.equal(
+    evidence.auditorDisclosureEnvelope.envelopeHash,
+    "0xa485b57d21703ab3847037d479ec257315bcfb7f61eb2a0a287c506b3293ace0"
+  );
+  assert.equal(evidence.auditorDisclosureEnvelope.receiptHash, evidence.auditorEvidence.receiptHash);
+  assert.equal(evidence.auditorDisclosureEnvelope.envelopeBindsReceipt, true);
+  assert.equal(evidence.auditorDisclosureEnvelope.reencryptionFallback, true);
   assert.equal(evidence.tamperCheck.tamperDetected, true);
   assert.notEqual(
     evidence.tamperCheck.tamperedReceiptHash,
@@ -63,6 +72,7 @@ function main() {
   assert.equal(evidence.passConditions.auditorDisclosureAuthorized, true);
   assert.equal(evidence.passConditions.plaintextCommitmentBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
+  assert.equal(evidence.passConditions.auditorEnvelopeBinding, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
   assert.equal(evidence.passConditions.missingReportDoesNotLeakSales, true);
   assert.equal(evidence.passConditions.missingReportDoesNotCreateReceipt, true);

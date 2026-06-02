@@ -542,6 +542,7 @@ function AuditorView() {
   const auditor = transcript.privateMode.visibleToAuditor;
   const authorization = auditor.authorization;
   const receipt = auditor.privateReceipt;
+  const disclosureEnvelope = auditor.disclosureEnvelope;
 
   return (
     <section className="view-grid view-auditor" aria-labelledby="auditor-heading">
@@ -598,6 +599,18 @@ function AuditorView() {
           <div>
             <span>Public observer</span>
             <strong>{authorization.publicObserverCanViewReceipt ? "allowed" : "blocked"}</strong>
+          </div>
+          <div>
+            <span>Envelope hash</span>
+            <code>{display.shortHash(disclosureEnvelope.envelopeHash)}</code>
+          </div>
+          <div>
+            <span>Envelope mode</span>
+            <strong>{disclosureEnvelope.mode}</strong>
+          </div>
+          <div>
+            <span>Ciphertext</span>
+            <code>{display.shortHash(disclosureEnvelope.ciphertext)}</code>
           </div>
         </div>
       </div>

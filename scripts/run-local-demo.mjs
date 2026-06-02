@@ -9,7 +9,15 @@ import {
   parseEventLogs
 } from "viem";
 
-import { buildManifest, demo } from "../lib/demo-fixture.mjs";
+import {
+  buildManifest,
+  demo,
+  demoAuditorDisclosureKeyMaterial
+} from "../lib/demo-fixture.mjs";
+import {
+  assertAuditorDisclosureEnvelope,
+  buildAuditorDisclosureEnvelope
+} from "../lib/auditor-disclosure-envelope.mjs";
 import {
   assertPrivateReceiptHash,
   buildPrivateReceipt
@@ -289,9 +297,20 @@ async function runLocalDemo() {
     assert.equal(publicDayStatus[1], manifest.privateReport.encryptedReportHash);
     assert.notEqual(publicDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
     assertPrivateReceiptHash(auditorReceipt, publicDayStatus[2]);
+    const auditorDisclosureEnvelope = buildAuditorDisclosureEnvelope({
+      receipt: auditorReceipt,
+      keyMaterial: demoAuditorDisclosureKeyMaterial
+    });
+    const decryptedAuditorReceipt = assertAuditorDisclosureEnvelope({
+      envelope: auditorDisclosureEnvelope,
+      keyMaterial: demoAuditorDisclosureKeyMaterial,
+      expectedReceiptHash: publicDayStatus[2]
+    });
+
     assert.equal(Number(outstanding), manifest.expectedSettlement.outstandingAfter);
     assert.equal(Number(lenderBalance), manifest.expectedSettlement.repaymentAmount);
     assert.equal(auditorCanView, true);
+    assert.equal(decryptedAuditorReceipt.receiptHash, publicDayStatus[2]);
 
     const missingDayIndex = manifest.privateReport.plaintext.dayIndex + 1;
     const latestBlock = await publicClient.getBlock();
@@ -388,7 +407,8 @@ async function runLocalDemo() {
         outstandingAfter: Number(outstanding),
         lenderFallbackTokenBalance: Number(lenderBalance),
         auditorCanView,
-        auditorReceipt
+        auditorReceipt,
+        auditorDisclosureEnvelope
       },
       complianceSla: {
         missingDayIndex,

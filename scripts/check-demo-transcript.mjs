@@ -34,7 +34,27 @@ function main() {
   assert.equal(transcript.privateMode.visibleToAuditor.authorization.publicObserverCanViewReceipt, false);
   assert.equal(
     transcript.privateMode.visibleToAuditor.authorization.disclosureMode,
-    "Role-authorized receipt metadata"
+    "Encrypted auditor receipt envelope"
+  );
+  assert.equal(
+    transcript.privateMode.visibleToMarket.auditorDisclosureEnvelopeHash,
+    "0xa485b57d21703ab3847037d479ec257315bcfb7f61eb2a0a287c506b3293ace0"
+  );
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.disclosureEnvelope.envelopeHash,
+    transcript.privateMode.visibleToMarket.auditorDisclosureEnvelopeHash
+  );
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.disclosureEnvelope.receiptHash,
+    transcript.privateMode.visibleToMarket.privateReceiptHash
+  );
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.disclosureEnvelope.mode,
+    "local-aes-gcm-reencryption-fallback"
+  );
+  assert.equal(
+    transcript.privateMode.visibleToAuditor.disclosureEnvelope.plaintextHash,
+    "0x4efdce08ae31a212e3854b6ff12f196d20cf471505adf077d6f13ee9c137914c"
   );
   assert.equal(transcript.privateMode.visibleToAuditor.grossSales, 1_240);
   assert.equal(transcript.privateMode.visibleToAuditor.repaymentAmount, 99);
