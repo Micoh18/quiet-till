@@ -22,12 +22,65 @@ contract SettlementActor {
         window.onDecrypt(requestId, decryptedReport);
     }
 
+    function onDecryptCTX(DailySettlementWindow window, bytes32 requestId, bytes calldata decryptedReport) external {
+        bytes[] memory decryptedArguments = new bytes[](1);
+        decryptedArguments[0] = decryptedReport;
+
+        bytes[] memory plaintextArguments = new bytes[](1);
+        plaintextArguments[0] = abi.encode(requestId);
+
+        window.onDecrypt(decryptedArguments, plaintextArguments);
+    }
+
     function markDecryptFailed(DailySettlementWindow window, bytes32 requestId, bytes32 failureReasonHash) external {
         window.markDecryptFailed(requestId, failureReasonHash);
     }
 
     function setMaxGrossSales(DailySettlementWindow window, uint256 nextMaxGrossSales) external {
         window.setMaxGrossSales(nextMaxGrossSales);
+    }
+}
+
+contract MockSubmitCTX {
+    uint256 public calls;
+    uint256 public lastGasLimit;
+    address public callbackSender;
+    bytes[] private _lastEncryptedArguments;
+    bytes[] private _lastPlaintextArguments;
+
+    constructor(address initialCallbackSender) {
+        callbackSender = initialCallbackSender;
+    }
+
+    receive() external payable {}
+
+    fallback(bytes calldata input) external payable returns (bytes memory) {
+        (uint256 gasLimit, bytes memory encodedArguments) = abi.decode(input, (uint256, bytes));
+        (bytes[] memory encryptedArguments, bytes[] memory plaintextArguments) =
+            abi.decode(encodedArguments, (bytes[], bytes[]));
+
+        calls += 1;
+        lastGasLimit = gasLimit;
+
+        delete _lastEncryptedArguments;
+        for (uint256 index = 0; index < encryptedArguments.length; index += 1) {
+            _lastEncryptedArguments.push(encryptedArguments[index]);
+        }
+
+        delete _lastPlaintextArguments;
+        for (uint256 index = 0; index < plaintextArguments.length; index += 1) {
+            _lastPlaintextArguments.push(plaintextArguments[index]);
+        }
+
+        return abi.encodePacked(callbackSender);
+    }
+
+    function lastEncryptedArgument(uint256 index) external view returns (bytes memory) {
+        return _lastEncryptedArguments[index];
+    }
+
+    function lastPlaintextArgument(uint256 index) external view returns (bytes memory) {
+        return _lastPlaintextArguments[index];
     }
 }
 
@@ -95,6 +148,50 @@ contract DailySettlementWindowTest {
         require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "outstanding mismatch");
     }
 
+    function testCTXRequestAuthorizesEphemeralCallbackAndSettles() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor ctxCallback = new SettlementActor();
+        MockSubmitCTX submitter = new MockSubmitCTX(address(ctxCallback));
+
+        fixture.window.setCtxSubmitter(address(submitter));
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+
+        (bytes32 requestId, address callbackSender) =
+            fixture.window.requestDailySettlementViaCTX(LOAN_ID, DAY_INDEX, 350_000);
+
+        require(callbackSender == address(ctxCallback), "callback sender mismatch");
+        require(submitter.calls() == 1, "submitter should be called once");
+        require(submitter.lastGasLimit() == 350_000, "callback gas mismatch");
+        require(
+            keccak256(submitter.lastEncryptedArgument(0)) == keccak256(ENCRYPTED_REPORT),
+            "encrypted arg mismatch"
+        );
+        require(
+            abi.decode(submitter.lastPlaintextArgument(0), (bytes32)) == requestId,
+            "request id plaintext mismatch"
+        );
+        require(
+            fixture.window.ctxRequestsByCallbackSender(address(ctxCallback)) == requestId,
+            "ctx callback should be armed"
+        );
+
+        ctxCallback.onDecryptCTX(fixture.window, requestId, _salesReport(1_240, 99));
+
+        (
+            DailySettlementWindow.DayStatus status,
+            ,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+
+        require(status == DailySettlementWindow.DayStatus.Settled, "ctx day should settle");
+        require(privateReceiptHash != bytes32(0), "ctx receipt hash should be set");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "ctx outstanding mismatch");
+        require(
+            fixture.window.ctxRequestsByCallbackSender(address(ctxCallback)) == bytes32(0),
+            "ctx callback should be cleared"
+        );
+    }
+
     function testRejectsUnauthorizedPosAgent() public {
         Fixture memory fixture = _deployFixture();
         SettlementActor unauthorized = new SettlementActor();
@@ -117,6 +214,24 @@ contract DailySettlementWindowTest {
             revert("expected unauthorized decrypt callback");
         } catch (bytes memory) {
             require(true, "unauthorized decrypt callback rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedCTXCallbackSender() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor ctxCallback = new SettlementActor();
+        SettlementActor unauthorized = new SettlementActor();
+        MockSubmitCTX submitter = new MockSubmitCTX(address(ctxCallback));
+
+        fixture.window.setCtxSubmitter(address(submitter));
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+
+        (bytes32 requestId, ) = fixture.window.requestDailySettlementViaCTX(LOAN_ID, DAY_INDEX, 350_000);
+
+        try unauthorized.onDecryptCTX(fixture.window, requestId, _salesReport(1_240, 99)) {
+            revert("expected unauthorized ctx callback");
+        } catch (bytes memory) {
+            require(true, "unauthorized ctx callback rejected");
         }
     }
 

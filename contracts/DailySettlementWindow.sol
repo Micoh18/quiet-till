@@ -80,9 +80,15 @@ contract DailySettlementWindow {
     error InvalidReportMerchant();
     error InvalidReportDay();
     error InvalidSalesAmount();
+    error InvalidCTXCallbackGas();
+    error InvalidCTXArguments();
+    error InvalidCTXCallbackSender();
+    error CTXSubmitFailed();
+    error CTXCallbackFundingFailed();
 
     event AdminTransferred(address indexed previousAdmin, address indexed nextAdmin);
     event DecryptCallbackUpdated(address indexed previousDecryptCallback, address indexed nextDecryptCallback);
+    event CtxSubmitterUpdated(address indexed previousCtxSubmitter, address indexed nextCtxSubmitter);
     event SettlementVaultUpdated(address indexed previousSettlementVault, address indexed nextSettlementVault);
     event MaxGrossSalesUpdated(uint256 previousMaxGrossSales, uint256 nextMaxGrossSales);
     event EncryptedReportSubmitted(
@@ -92,6 +98,13 @@ contract DailySettlementWindow {
         bytes32 encryptedReportHash
     );
     event DailySettlementRequested(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 indexed requestId);
+    event DailySettlementCTXSubmitted(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        bytes32 indexed requestId,
+        address callbackSender,
+        uint256 callbackGas
+    );
     event DailySettlementSettled(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 privateReceiptHash);
     event DailySettlementFailed(
         uint256 indexed loanId,
@@ -101,10 +114,12 @@ contract DailySettlementWindow {
     );
 
     uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
+    address public constant DEFAULT_CTX_SUBMITTER = address(0x1B);
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
 
     address public admin;
     address public decryptCallback;
+    address public ctxSubmitter = DEFAULT_CTX_SUBMITTER;
     uint256 public maxGrossSales = DEFAULT_MAX_GROSS_SALES;
     ISettlementMerchantRegistry public immutable merchantRegistry;
     ISettlementRevenueLoan public immutable revenueLoan;
@@ -113,6 +128,7 @@ contract DailySettlementWindow {
 
     mapping(uint256 => mapping(uint256 => SettlementDay)) private _settlementDays;
     mapping(bytes32 => PendingDecrypt) public pendingDecrypts;
+    mapping(address => bytes32) public ctxRequestsByCallbackSender;
 
     modifier onlyAdmin() {
         if (msg.sender != admin) {
@@ -171,6 +187,17 @@ contract DailySettlementWindow {
         emit DecryptCallbackUpdated(previousDecryptCallback, nextDecryptCallback);
     }
 
+    function setCtxSubmitter(address nextCtxSubmitter) external onlyAdmin {
+        if (nextCtxSubmitter == address(0)) {
+            revert ZeroAddress();
+        }
+
+        address previousCtxSubmitter = ctxSubmitter;
+        ctxSubmitter = nextCtxSubmitter;
+
+        emit CtxSubmitterUpdated(previousCtxSubmitter, nextCtxSubmitter);
+    }
+
     function setSettlementVault(address nextSettlementVault) external onlyAdmin {
         address previousSettlementVault = address(settlementVault);
         settlementVault = ISettlementVault(nextSettlementVault);
@@ -224,6 +251,90 @@ contract DailySettlementWindow {
     }
 
     function requestDailySettlement(uint256 loanId, uint256 dayIndex) external returns (bytes32 requestId) {
+        requestId = _openDecryptRequest(loanId, dayIndex, msg.sender);
+    }
+
+    function requestDailySettlementViaCTX(uint256 loanId, uint256 dayIndex, uint256 callbackGas)
+        external
+        payable
+        returns (bytes32 requestId, address callbackSender)
+    {
+        if (callbackGas == 0) {
+            revert InvalidCTXCallbackGas();
+        }
+
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
+        requestId = _openDecryptRequest(loanId, dayIndex, msg.sender);
+
+        bytes[] memory encryptedArguments = new bytes[](1);
+        encryptedArguments[0] = day.encryptedReport;
+
+        bytes[] memory plaintextArguments = new bytes[](1);
+        plaintextArguments[0] = abi.encode(requestId);
+
+        callbackSender = _submitCTX(callbackGas, encryptedArguments, plaintextArguments);
+        ctxRequestsByCallbackSender[callbackSender] = requestId;
+
+        if (msg.value > 0) {
+            (bool sent, ) = payable(callbackSender).call{ value: msg.value }("");
+
+            if (!sent) {
+                revert CTXCallbackFundingFailed();
+            }
+        }
+
+        emit DailySettlementCTXSubmitted(loanId, dayIndex, requestId, callbackSender, callbackGas);
+    }
+
+    function onDecrypt(bytes32 requestId, bytes calldata decryptedReport) external onlyDecryptCallback {
+        _settleDecryptedReport(requestId, decryptedReport);
+    }
+
+    function onDecrypt(bytes[] calldata decryptedArguments, bytes[] calldata plaintextArguments) external {
+        if (decryptedArguments.length != 1 || plaintextArguments.length != 1) {
+            revert InvalidCTXArguments();
+        }
+
+        bytes32 requestId = abi.decode(plaintextArguments[0], (bytes32));
+
+        if (ctxRequestsByCallbackSender[msg.sender] != requestId) {
+            revert Unauthorized();
+        }
+
+        delete ctxRequestsByCallbackSender[msg.sender];
+        _settleDecryptedReport(requestId, decryptedArguments[0]);
+    }
+
+    function markDecryptFailed(bytes32 requestId, bytes32 failureReasonHash) external onlyDecryptCallback {
+        PendingDecrypt memory pending = pendingDecrypts[requestId];
+
+        if (!pending.exists) {
+            revert UnknownDecryptRequest();
+        }
+
+        SettlementDay storage day = _settlementDays[pending.loanId][pending.dayIndex];
+
+        if (day.status != DayStatus.DecryptRequested) {
+            revert DayAlreadyReported();
+        }
+
+        day.status = DayStatus.Failed;
+        delete pendingDecrypts[requestId];
+
+        emit DailySettlementFailed(pending.loanId, pending.dayIndex, requestId, failureReasonHash);
+    }
+
+    function getPublicDayStatus(uint256 loanId, uint256 dayIndex)
+        external
+        view
+        returns (DayStatus status, bytes32 encryptedReportHash, bytes32 privateReceiptHash)
+    {
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
+
+        return (day.status, day.encryptedReportHash, day.privateReceiptHash);
+    }
+
+    function _openDecryptRequest(uint256 loanId, uint256 dayIndex, address requester) private returns (bytes32 requestId) {
         SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
         if (day.status == DayStatus.Open) {
@@ -238,7 +349,7 @@ contract DailySettlementWindow {
             revert DayAlreadyReported();
         }
 
-        if (!_canRequestSettlement(loanId, msg.sender)) {
+        if (!_canRequestSettlement(loanId, requester)) {
             revert Unauthorized();
         }
 
@@ -260,7 +371,7 @@ contract DailySettlementWindow {
         emit DailySettlementRequested(loanId, dayIndex, requestId);
     }
 
-    function onDecrypt(bytes32 requestId, bytes calldata decryptedReport) external onlyDecryptCallback {
+    function _settleDecryptedReport(bytes32 requestId, bytes calldata decryptedReport) private {
         PendingDecrypt memory pending = pendingDecrypts[requestId];
 
         if (!pending.exists) {
@@ -315,35 +426,6 @@ contract DailySettlementWindow {
         emit DailySettlementSettled(report.loanId, report.dayIndex, privateReceiptHash);
     }
 
-    function markDecryptFailed(bytes32 requestId, bytes32 failureReasonHash) external onlyDecryptCallback {
-        PendingDecrypt memory pending = pendingDecrypts[requestId];
-
-        if (!pending.exists) {
-            revert UnknownDecryptRequest();
-        }
-
-        SettlementDay storage day = _settlementDays[pending.loanId][pending.dayIndex];
-
-        if (day.status != DayStatus.DecryptRequested) {
-            revert DayAlreadyReported();
-        }
-
-        day.status = DayStatus.Failed;
-        delete pendingDecrypts[requestId];
-
-        emit DailySettlementFailed(pending.loanId, pending.dayIndex, requestId, failureReasonHash);
-    }
-
-    function getPublicDayStatus(uint256 loanId, uint256 dayIndex)
-        external
-        view
-        returns (DayStatus status, bytes32 encryptedReportHash, bytes32 privateReceiptHash)
-    {
-        SettlementDay storage day = _settlementDays[loanId][dayIndex];
-
-        return (day.status, day.encryptedReportHash, day.privateReceiptHash);
-    }
-
     function _canRequestSettlement(uint256 loanId, address requester) private view returns (bool) {
         return requester == admin || requester == revenueLoan.lenderFor(loanId) || requester == revenueLoan.borrowerFor(loanId);
     }
@@ -362,6 +444,28 @@ contract DailySettlementWindow {
                 report.nonce
             )
         );
+    }
+
+    function _submitCTX(uint256 callbackGas, bytes[] memory encryptedArguments, bytes[] memory plaintextArguments)
+        private
+        returns (address callbackSender)
+    {
+        (bool success, bytes memory returnData) =
+            ctxSubmitter.call(abi.encode(callbackGas, abi.encode(encryptedArguments, plaintextArguments)));
+
+        if (!success) {
+            revert CTXSubmitFailed();
+        }
+
+        if (returnData.length != 20) {
+            revert InvalidCTXCallbackSender();
+        }
+
+        callbackSender = address(bytes20(returnData));
+
+        if (callbackSender == address(0)) {
+            revert InvalidCTXCallbackSender();
+        }
     }
 
     function _settlePublicFallbackPayment(
