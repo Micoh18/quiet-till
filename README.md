@@ -100,6 +100,18 @@ Run a full in-memory local demo:
 npm run demo:local
 ```
 
+Validate the external deployment plan without secrets:
+
+```bash
+npm run deploy:check
+```
+
+Deploy and seed the demo contracts on a configured RPC target:
+
+```bash
+npm run deploy:demo
+```
+
 Check the manifest against compiled artifacts and expected repayment math:
 
 ```bash
@@ -117,6 +129,8 @@ The demo manifest describes contract constructor arguments, setup calls, the enc
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
+
+`npm run deploy:check` validates the same manifest and deployment order in dry-run mode. `npm run deploy:demo` requires the environment variables shown in `.env.example`, deploys the contracts to the configured RPC chain, runs the setup calls, and can write a JSON deployment summary through `QUIET_TILL_DEPLOY_OUTPUT`.
 
 ## Privacy Boundary
 
