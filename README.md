@@ -37,7 +37,7 @@ Early hackathon MVP with the first contract layer in place.
 ## Current Contract Surface
 
 - `MerchantRegistry`: registers merchants, POS agents, and auditors.
-- `RevenueLoan`: stores revenue-based loan terms and applies capped daily repayments.
+- `RevenueLoan`: stores revenue-based loan terms, applies capped daily repayments, and keeps exact outstanding snapshots behind participant-only ABI reads.
 - `AuditorDisclosure`: records private receipt metadata for authorized auditors.
 - `DailySettlementWindow`: stores encrypted report payloads, requests settlement, accepts an authorized decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
@@ -121,6 +121,8 @@ The transcript turns that manifest into the core demo story: public mode leaks g
 ## Privacy Boundary
 
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
+
+`RevenueLoan` exposes public loan terms and status without an exact outstanding getter for arbitrary callers. Lenders, borrowers, auditors, the admin, and the settlement window can read exact loan snapshots through authorized calls.
 
 Fallback ERC20 payments can reveal repayment amounts. The long-term path is to replace that fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
 
