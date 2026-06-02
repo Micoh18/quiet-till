@@ -8,11 +8,13 @@
     "build": "hardhat compile",
     "test": "hardhat test",
     "clean": "hardhat clean",
+    "web:dev": "vite --host 127.0.0.1 --port 5173",
+    "web:build": "vite build",
     "demo:manifest": "node scripts/demo-manifest.mjs",
     "demo:transcript": "node scripts/demo-transcript.mjs",
     "demo:check": "npm run build && node scripts/check-demo-manifest.mjs",
     "transcript:check": "node scripts/check-demo-transcript.mjs",
-    "verify": "npm test && npm run demo:check && npm run transcript:check && npm audit --audit-level=high"
+    "verify": "npm test && npm run web:build && npm run demo:check && npm run transcript:check && npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
