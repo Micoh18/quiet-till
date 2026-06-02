@@ -22,6 +22,8 @@ const coreEventForbiddenInputs = new Set([
   "outstanding",
   "outstandingBefore",
   "outstandingAfter",
+  "nonce",
+  "reportNonceHash",
   "auditor"
 ]);
 
@@ -77,7 +79,9 @@ async function assertNoPublicSensitiveMappings() {
     const forbiddenPublicMappings = [
       /\bmapping\s*\([^;]+?\)\s+public\s+loans\b/,
       /\bmapping\s*\([^;]+?\)\s+public\s+receiptMeta\b/,
-      /\bmapping\s*\([^;]+?\)\s+public\s+settlementDays\b/
+      /\bmapping\s*\([^;]+?\)\s+public\s+settlementDays\b/,
+      /\bmapping\s*\([^;]+?\)\s+public\s+usedReportNonces\b/,
+      /\bmapping\s*\([^;]+?\)\s+public\s+_usedReportNonces\b/
     ];
 
     for (const pattern of forbiddenPublicMappings) {
@@ -127,6 +131,8 @@ assertEventInputsDoNotLeak(
 assertNoAbiFunction(loaded.RevenueLoan, "loans", "RevenueLoan");
 assertNoAbiFunction(loaded.AuditorDisclosure, "receiptMeta", "AuditorDisclosure");
 assertNoAbiFunction(loaded.DailySettlementWindow, "settlementDays", "DailySettlementWindow");
+assertNoAbiFunction(loaded.DailySettlementWindow, "usedReportNonces", "DailySettlementWindow");
+assertNoAbiFunction(loaded.DailySettlementWindow, "_usedReportNonces", "DailySettlementWindow");
 
 assertFallbackLeakIsIsolated(loaded.SettlementVault);
 await assertNoPublicSensitiveMappings();

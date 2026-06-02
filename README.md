@@ -202,6 +202,8 @@ The judge evidence bundle compresses the same proof into a short JSON object: pu
 
 The encrypted report path can include a plaintext commitment hash. When present, the settlement callback must decrypt to bytes matching that commitment before repayment is applied.
 
+Each decrypted report also consumes a private nonce hash. Reusing the same report nonce across settlements is rejected, and the nonce hash is kept out of the public ABI and event surface.
+
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 
 `npm run receipt:check` verifies the canonical private receipt domain, receipt hash calculation, and tamper sensitivity. `npm run demo:local` also reconstructs the auditor receipt and asserts that its hash matches the onchain `privateReceiptHash`.
@@ -221,6 +223,8 @@ The local demo also opens follow-up report windows, advances the in-memory clock
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
 
 `DailySettlementWindow` keeps full settlement day storage private and exposes only a limited public status view with status, encrypted report hash, and private receipt hash.
+
+Report nonces are private replay-protection material. The contract stores only a private consumed-nonce hash and does not expose a public getter or event field for the raw nonce.
 
 Report deadlines, cure deadlines, and missing-report covenant strikes are public compliance state. A missing report can be marked onchain, cured through a late encrypted report, or left uncured until repeated missed closes default the loan. These events carry no gross sales, projected repayment, or private receipt hash.
 

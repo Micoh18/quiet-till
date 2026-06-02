@@ -558,6 +558,32 @@ contract DailySettlementWindowTest {
         }
     }
 
+    function testRejectsReusedPrivateReportNonce() public {
+        Fixture memory fixture = _deployFixture();
+        uint256 nextDayIndex = DAY_INDEX + 1;
+        bytes memory replayedNonceReport = _salesReportFor(LOAN_ID, MERCHANT_ID, nextDayIndex, 880, 99);
+
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 firstRequestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(firstRequestId, _salesReport(1_240, 99));
+
+        fixture.window.submitEncryptedReportWithCommitment(
+            LOAN_ID,
+            nextDayIndex,
+            hex"71756965742d74696c6c2d7265706c6179",
+            keccak256(replayedNonceReport)
+        );
+        bytes32 replayRequestId = fixture.window.requestDailySettlement(LOAN_ID, nextDayIndex);
+
+        try fixture.window.onDecrypt(replayRequestId, replayedNonceReport) {
+            revert("expected reused nonce rejection");
+        } catch (bytes memory) {
+            require(true, "reused nonce rejected");
+        }
+
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "replayed nonce should not repay");
+    }
+
     function testRejectsOutlierSalesAmount() public {
         Fixture memory fixture = _deployFixture();
 

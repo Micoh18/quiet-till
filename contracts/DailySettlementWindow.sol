@@ -99,6 +99,7 @@ contract DailySettlementWindow {
     error InvalidReportLoan();
     error InvalidReportMerchant();
     error InvalidReportDay();
+    error ReportNonceAlreadyUsed();
     error InvalidSalesAmount();
     error InvalidReportCommitment();
     error InvalidReportDeadline();
@@ -169,6 +170,7 @@ contract DailySettlementWindow {
     uint256 public constant DEFAULT_CURE_PERIOD_SECONDS = 1 days;
     address public constant DEFAULT_CTX_SUBMITTER = address(0x1B);
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
+    bytes32 private constant REPORT_NONCE_DOMAIN = keccak256("QUIET_TILL_PRIVATE_REPORT_NONCE_V1");
     bytes32 private constant PAYMENT_COMMITMENT_DOMAIN =
         keccak256("QUIET_TILL_CONFIDENTIAL_PAYMENT_COMMITMENT_V1");
 
@@ -184,6 +186,7 @@ contract DailySettlementWindow {
     IConfidentialPaymentRail public confidentialPaymentRail;
 
     mapping(uint256 => mapping(uint256 => SettlementDay)) private _settlementDays;
+    mapping(bytes32 => bool) private _usedReportNonces;
     mapping(bytes32 => PendingDecrypt) public pendingDecrypts;
     mapping(address => bytes32) public ctxRequestsByCallbackSender;
 
@@ -600,6 +603,8 @@ contract DailySettlementWindow {
             revert InvalidSalesAmount();
         }
 
+        _consumeReportNonce(report);
+
         uint256 repaymentAmount = revenueLoan.previewRepayment(report.loanId, report.grossSales);
         bytes32 privateReceiptHash = _receiptHash(report, repaymentAmount);
         bool shouldCureMissingReport = day.missingReportRecorded;
@@ -647,6 +652,25 @@ contract DailySettlementWindow {
                 report.nonce
             )
         );
+    }
+
+    function _consumeReportNonce(SalesReportPlaintext memory report) private {
+        bytes32 reportNonceHash = keccak256(
+            abi.encode(
+                REPORT_NONCE_DOMAIN,
+                block.chainid,
+                address(this),
+                report.loanId,
+                report.merchantId,
+                report.nonce
+            )
+        );
+
+        if (_usedReportNonces[reportNonceHash]) {
+            revert ReportNonceAlreadyUsed();
+        }
+
+        _usedReportNonces[reportNonceHash] = true;
     }
 
     function _submitCTX(uint256 callbackGas, bytes[] memory encryptedArguments, bytes[] memory plaintextArguments)
