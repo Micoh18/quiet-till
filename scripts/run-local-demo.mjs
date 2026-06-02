@@ -10,6 +10,10 @@ import {
 } from "viem";
 
 import { buildManifest, demo } from "../lib/demo-fixture.mjs";
+import {
+  assertPrivateReceiptHash,
+  buildPrivateReceipt
+} from "../lib/private-receipt.mjs";
 
 const roleOrder = [
   "admin",
@@ -227,11 +231,14 @@ async function runLocalDemo() {
 
     const requestId = requestedEvents[0].args.requestId;
 
-    await writeContract({
+    const decryptReceipt = await writeContract({
       contractName: "DailySettlementWindow",
       functionName: "onDecrypt",
       args: [requestId, manifest.privateReport.encodedPlaintext],
       from: "decryptCallback"
+    });
+    const decryptBlock = await publicClient.getBlock({
+      blockNumber: decryptReceipt.blockNumber
     });
 
     const publicDayStatus = await readContract({
@@ -256,10 +263,23 @@ async function runLocalDemo() {
       args: [publicDayStatus[2], manifest.actors.auditor],
       from: "auditor"
     });
+    const auditorReceipt = buildPrivateReceipt({
+      chainId,
+      settlementWindow: deployed.DailySettlementWindow.address,
+      auditor: manifest.actors.auditor,
+      report: manifest.privateReport.plaintext,
+      repaymentBps: demo.loan.repaymentBps,
+      repaymentAmount: manifest.expectedSettlement.repaymentAmount,
+      outstandingBefore: demo.loan.principal,
+      outstandingAfter: manifest.expectedSettlement.outstandingAfter,
+      settledAt: decryptBlock.timestamp,
+      encodedPlaintext: manifest.privateReport.encodedPlaintext
+    });
 
     assert.equal(Number(publicDayStatus[0]), dayStatus.Settled);
     assert.equal(publicDayStatus[1], manifest.privateReport.encryptedReportHash);
     assert.notEqual(publicDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assertPrivateReceiptHash(auditorReceipt, publicDayStatus[2]);
     assert.equal(Number(outstanding), manifest.expectedSettlement.outstandingAfter);
     assert.equal(Number(lenderBalance), manifest.expectedSettlement.repaymentAmount);
     assert.equal(auditorCanView, true);
@@ -283,7 +303,8 @@ async function runLocalDemo() {
         publicGrossSales: null,
         outstandingAfter: Number(outstanding),
         lenderFallbackTokenBalance: Number(lenderBalance),
-        auditorCanView
+        auditorCanView,
+        auditorReceipt
       }
     };
   } finally {
