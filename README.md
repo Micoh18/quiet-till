@@ -42,6 +42,7 @@ Early hackathon MVP with the first contract layer in place.
 - `DailySettlementWindow`: stores encrypted report payloads, requests settlement, and accepts an authorized decrypt callback.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
 - `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
+- `PublicModeSimulator`: publishes sales and competitor signals for the public-mode comparison.
 
 The current settlement tests use encoded plaintext to simulate the post-decryption callback. The next integration step is wiring SKALE BITE/CTX so the encrypted report path is backed by the live privacy primitive instead of a test callback.
 
@@ -73,6 +74,12 @@ Build a deterministic local demo manifest:
 npm run demo:manifest
 ```
 
+Print the deterministic public-vs-private demo transcript:
+
+```bash
+npm run demo:transcript
+```
+
 Check the manifest against compiled artifacts and expected repayment math:
 
 ```bash
@@ -87,8 +94,12 @@ npm run verify
 
 The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
 
+The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
+
 ## Privacy Boundary
 
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
 
 Fallback ERC20 payments can reveal repayment amounts. The long-term path is to replace that fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
+
+`PublicModeSimulator` is intentionally leaky. It is a demo comparison surface, not the private settlement path.
