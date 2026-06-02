@@ -130,6 +130,8 @@ Run the full local quality gate:
 npm run verify
 ```
 
+GitHub Actions runs the same `npm run verify` gate on pushes to `main` and on pull requests.
+
 The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
 
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
