@@ -79,10 +79,12 @@ contract DailySettlementWindow {
     error InvalidReportLoan();
     error InvalidReportMerchant();
     error InvalidReportDay();
+    error InvalidSalesAmount();
 
     event AdminTransferred(address indexed previousAdmin, address indexed nextAdmin);
     event DecryptCallbackUpdated(address indexed previousDecryptCallback, address indexed nextDecryptCallback);
     event SettlementVaultUpdated(address indexed previousSettlementVault, address indexed nextSettlementVault);
+    event MaxGrossSalesUpdated(uint256 previousMaxGrossSales, uint256 nextMaxGrossSales);
     event EncryptedReportSubmitted(
         uint256 indexed loanId,
         uint256 indexed dayIndex,
@@ -92,10 +94,12 @@ contract DailySettlementWindow {
     event DailySettlementRequested(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 indexed requestId);
     event DailySettlementSettled(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 privateReceiptHash);
 
+    uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
 
     address public admin;
     address public decryptCallback;
+    uint256 public maxGrossSales = DEFAULT_MAX_GROSS_SALES;
     ISettlementMerchantRegistry public immutable merchantRegistry;
     ISettlementRevenueLoan public immutable revenueLoan;
     ISettlementAuditorDisclosure public immutable auditorDisclosure;
@@ -166,6 +170,17 @@ contract DailySettlementWindow {
         settlementVault = ISettlementVault(nextSettlementVault);
 
         emit SettlementVaultUpdated(previousSettlementVault, nextSettlementVault);
+    }
+
+    function setMaxGrossSales(uint256 nextMaxGrossSales) external onlyAdmin {
+        if (nextMaxGrossSales == 0) {
+            revert InvalidSalesAmount();
+        }
+
+        uint256 previousMaxGrossSales = maxGrossSales;
+        maxGrossSales = nextMaxGrossSales;
+
+        emit MaxGrossSalesUpdated(previousMaxGrossSales, nextMaxGrossSales);
     }
 
     function submitEncryptedReport(uint256 loanId, uint256 dayIndex, bytes calldata encryptedReport) external {
@@ -264,6 +279,10 @@ contract DailySettlementWindow {
 
         if (report.dayIndex != pending.dayIndex) {
             revert InvalidReportDay();
+        }
+
+        if (report.grossSales > maxGrossSales) {
+            revert InvalidSalesAmount();
         }
 
         uint256 repaymentAmount = revenueLoan.previewRepayment(report.loanId, report.grossSales);

@@ -21,6 +21,10 @@ contract SettlementActor {
     function onDecrypt(DailySettlementWindow window, bytes32 requestId, bytes calldata decryptedReport) external {
         window.onDecrypt(requestId, decryptedReport);
     }
+
+    function setMaxGrossSales(DailySettlementWindow window, uint256 nextMaxGrossSales) external {
+        window.setMaxGrossSales(nextMaxGrossSales);
+    }
 }
 
 contract SettlementBorrower {
@@ -122,6 +126,31 @@ contract DailySettlementWindowTest {
             revert("expected mismatched loan");
         } catch (bytes memory) {
             require(true, "mismatched report rejected");
+        }
+    }
+
+    function testRejectsOutlierSalesAmount() public {
+        Fixture memory fixture = _deployFixture();
+
+        fixture.window.setMaxGrossSales(1_000);
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+
+        try fixture.window.onDecrypt(requestId, _salesReport(1_240, 99)) {
+            revert("expected invalid sales amount");
+        } catch (bytes memory) {
+            require(true, "outlier sales rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedSalesLimitUpdate() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor unauthorized = new SettlementActor();
+
+        try unauthorized.setMaxGrossSales(fixture.window, 50_000) {
+            revert("expected unauthorized sales limit update");
+        } catch (bytes memory) {
+            require(true, "unauthorized sales limit update rejected");
         }
     }
 
