@@ -32,4 +32,37 @@ SKALE Programmable Privacy Hackathon.
 
 ## Status
 
-Early hackathon MVP.
+Early hackathon MVP with the first contract layer in place.
+
+## Current Contract Surface
+
+- `MerchantRegistry`: registers merchants, POS agents, and auditors.
+- `RevenueLoan`: stores revenue-based loan terms and applies capped daily repayments.
+- `AuditorDisclosure`: records private receipt metadata for authorized auditors.
+- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, and accepts an authorized decrypt callback.
+
+The current settlement tests use encoded plaintext to simulate the post-decryption callback. The next integration step is wiring SKALE BITE/CTX so the encrypted report path is backed by the live privacy primitive instead of a test callback.
+
+## Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Compile contracts:
+
+```bash
+npm run build
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+## Privacy Boundary
+
+Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
