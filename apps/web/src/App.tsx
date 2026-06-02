@@ -7,6 +7,7 @@ import {
   Building2,
   Calculator,
   CheckCircle,
+  ClipboardCheck,
   CircleDollarSign,
   Eye,
   EyeOff,
@@ -23,7 +24,7 @@ import {
   UserCheck,
   Wallet
 } from "lucide-react";
-import { demoFlow, display, fixture, manifest, settlementPath, transcript } from "./demoData";
+import { demoFlow, display, fixture, judgeEvidence, manifest, settlementPath, transcript } from "./demoData";
 
 type ViewKey = "merchant" | "public" | "auditor";
 type StepKey = (typeof demoFlow)[number]["key"];
@@ -368,6 +369,70 @@ function PublicView({ onAdvance }: { onAdvance: () => void }) {
   );
 }
 
+function JudgeEvidencePanel() {
+  const publicMode = judgeEvidence.publicObserver.publicMode;
+  const privateMode = judgeEvidence.publicObserver.quietTillMode;
+  const privateGrossSales =
+    privateMode.visibleGrossSales === null
+      ? "hidden"
+      : display.amount(privateMode.visibleGrossSales);
+  const conditions = [
+    {
+      label: "No public sales",
+      passed: judgeEvidence.passConditions.noQuietTillPublicGrossSales
+    },
+    {
+      label: "No public repayment",
+      passed: judgeEvidence.passConditions.noQuietTillPublicProjectedRepayment
+    },
+    {
+      label: "Receipt binds",
+      passed: judgeEvidence.passConditions.publicReceiptBinding
+    },
+    {
+      label: "Tamper caught",
+      passed: judgeEvidence.passConditions.tamperSensitivity
+    }
+  ];
+
+  return (
+    <div className="judge-evidence" aria-label="Judge evidence bundle">
+      <div className="evidence-header">
+        <ClipboardCheck aria-hidden="true" />
+        <div>
+          <span>Judge evidence</span>
+          <strong>{judgeEvidence.tracks.join(" + ")}</strong>
+        </div>
+      </div>
+      <div className="evidence-grid">
+        <div className="evidence-column evidence-leak">
+          <span>Public mode leak</span>
+          <strong>{display.amount(publicMode.visibleGrossSales)}</strong>
+          <small>{publicMode.competitorSignal}</small>
+        </div>
+        <div className="evidence-column evidence-private">
+          <span>Quiet Till market view</span>
+          <strong>{privateGrossSales}</strong>
+          <small>{display.shortHash(privateMode.privateReceiptHash)}</small>
+        </div>
+        <div className="evidence-column evidence-tamper">
+          <span>Tamper check</span>
+          <strong>{judgeEvidence.tamperCheck.tamperDetected ? "detected" : "missed"}</strong>
+          <small>{display.shortHash(judgeEvidence.tamperCheck.tamperedReceiptHash)}</small>
+        </div>
+      </div>
+      <div className="condition-row">
+        {conditions.map((condition) => (
+          <span className="condition-pill" key={condition.label}>
+            <CheckCircle aria-hidden="true" />
+            {condition.label}: {condition.passed ? "pass" : "fail"}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AuditorView() {
   const auditor = transcript.privateMode.visibleToAuditor;
   const receipt = auditor.privateReceipt;
@@ -431,6 +496,8 @@ function AuditorView() {
           </div>
         </div>
       </div>
+
+      <JudgeEvidencePanel />
 
       <div className="encoded-block">
         <div>

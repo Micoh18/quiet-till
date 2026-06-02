@@ -62,6 +62,8 @@ button {
 .metric-label,
 .status-pill,
 .action-row,
+.evidence-header,
+.condition-pill,
 .flow-heading,
 .flow-step,
 .encoded-block,
@@ -363,6 +365,7 @@ button {
 .privacy-path,
 .audit-ledger,
 .receipt-proof,
+.judge-evidence,
 .encoded-block,
 .leak-column,
 .quiet-column {
@@ -668,6 +671,111 @@ button {
   border-color: rgba(13, 148, 136, 0.22);
 }
 
+.judge-evidence {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.evidence-header {
+  gap: 10px;
+}
+
+.evidence-header > svg {
+  width: 19px;
+  height: 19px;
+  color: #0f766e;
+}
+
+.evidence-header span {
+  display: block;
+  color: #55706a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evidence-header strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #17211f;
+  font-size: 1rem;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.evidence-column {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border-left: 3px solid #d8e0dc;
+  padding-left: 12px;
+}
+
+.evidence-column span,
+.evidence-column small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #66706d;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evidence-column strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #18201f;
+  font-size: 1.12rem;
+  line-height: 1.15;
+}
+
+.evidence-leak {
+  border-left-color: #be123c;
+}
+
+.evidence-leak strong {
+  color: #be123c;
+}
+
+.evidence-private,
+.evidence-tamper {
+  border-left-color: #0f766e;
+}
+
+.evidence-private strong,
+.evidence-tamper strong {
+  color: #0f766e;
+}
+
+.condition-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.condition-pill {
+  gap: 7px;
+  min-height: 32px;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #0f766e;
+  background: #f7fffb;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.condition-pill svg {
+  width: 15px;
+  height: 15px;
+}
+
 .proof-status {
   display: flex;
   flex-wrap: wrap;
@@ -763,6 +871,7 @@ button {
 
   .privacy-path,
   .audit-ledger,
+  .evidence-grid,
   .proof-grid {
     grid-template-columns: 1fr;
   }
