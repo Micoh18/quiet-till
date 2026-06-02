@@ -46,6 +46,14 @@ contract SettlementActor {
         window.markDecryptFailed(requestId, failureReasonHash);
     }
 
+    function openReportWindow(DailySettlementWindow window, uint256 loanId, uint256 dayIndex, uint256 dueAt) external {
+        window.openReportWindow(loanId, dayIndex, dueAt);
+    }
+
+    function markReportMissing(DailySettlementWindow window, uint256 loanId, uint256 dayIndex) external {
+        window.markReportMissing(loanId, dayIndex);
+    }
+
     function setMaxGrossSales(DailySettlementWindow window, uint256 nextMaxGrossSales) external {
         window.setMaxGrossSales(nextMaxGrossSales);
     }
@@ -189,6 +197,80 @@ contract DailySettlementWindowTest {
             revert("expected zero commitment rejection");
         } catch (bytes memory) {
             require(true, "zero commitment rejected");
+        }
+    }
+
+    function testOpensReportWindowWithDeadline() public {
+        Fixture memory fixture = _deployFixture();
+        uint256 dueAt = block.timestamp + 1 days;
+
+        fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, dueAt);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            bytes32 encryptedReportHash,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+
+        require(status == DailySettlementWindow.DayStatus.Open, "window should remain open");
+        require(encryptedReportHash == bytes32(0), "open window should not have encrypted report");
+        require(privateReceiptHash == bytes32(0), "open window should not have receipt");
+        require(fixture.window.getReportDeadline(LOAN_ID, DAY_INDEX) == dueAt, "deadline mismatch");
+    }
+
+    function testRejectsMissingReportBeforeDeadline() public {
+        Fixture memory fixture = _deployFixture();
+
+        fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, block.timestamp + 1 days);
+
+        try fixture.window.markReportMissing(LOAN_ID, DAY_INDEX) {
+            revert("expected active deadline rejection");
+        } catch (bytes memory) {
+            require(true, "active deadline rejected");
+        }
+    }
+
+    function testMarksMissingReportWithoutPublishingSales() public {
+        Fixture memory fixture = _deployFixture();
+        uint256 dueAt = block.timestamp;
+
+        fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, dueAt);
+        fixture.window.markReportMissing(LOAN_ID, DAY_INDEX);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            bytes32 encryptedReportHash,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+
+        require(status == DailySettlementWindow.DayStatus.Missing, "day should be missing");
+        require(encryptedReportHash == bytes32(0), "missing day should not have encrypted report");
+        require(privateReceiptHash == bytes32(0), "missing day should not have receipt");
+        require(fixture.window.getReportDeadline(LOAN_ID, DAY_INDEX) == dueAt, "missing deadline mismatch");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 10_000, "missing report should not repay");
+    }
+
+    function testRejectsReportAfterDayMarkedMissing() public {
+        Fixture memory fixture = _deployFixture();
+
+        fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, block.timestamp);
+        fixture.window.markReportMissing(LOAN_ID, DAY_INDEX);
+
+        try fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT) {
+            revert("expected missing day rejection");
+        } catch (bytes memory) {
+            require(true, "missing day report rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedReportWindowOpen() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor unauthorized = new SettlementActor();
+
+        try unauthorized.openReportWindow(fixture.window, LOAN_ID, DAY_INDEX, block.timestamp + 1 days) {
+            revert("expected unauthorized report window open");
+        } catch (bytes memory) {
+            require(true, "unauthorized report window open rejected");
         }
     }
 

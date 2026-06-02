@@ -44,6 +44,10 @@ function main() {
     evidence.tamperCheck.tamperedReceiptHash,
     evidence.publicObserver.quietTillMode.privateReceiptHash
   );
+  assert.equal(evidence.complianceSla.missingDayIndex, 5);
+  assert.equal(evidence.complianceSla.missingStatus, "Missing");
+  assert.equal(evidence.complianceSla.missingReportLeaksGrossSales, false);
+  assert.equal(evidence.complianceSla.missingReportCreatesReceipt, false);
 
   assert.equal(evidence.skalePrivacyUse.encryptedReportStoredOnchain, true);
   assert.equal(evidence.skalePrivacyUse.ctxSubmitterPrecompile, "0x1B");
@@ -57,6 +61,8 @@ function main() {
   assert.equal(evidence.passConditions.plaintextCommitmentBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
+  assert.equal(evidence.passConditions.missingReportDoesNotLeakSales, true);
+  assert.equal(evidence.passConditions.missingReportDoesNotCreateReceipt, true);
 
   console.log("Judge evidence check passed.");
 }

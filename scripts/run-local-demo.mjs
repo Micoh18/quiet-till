@@ -29,7 +29,8 @@ const dayStatus = {
   ReportSubmitted: 1,
   DecryptRequested: 2,
   Settled: 3,
-  Failed: 4
+  Failed: 4,
+  Missing: 5
 };
 
 const quiet = process.argv.includes("--quiet");
@@ -285,6 +286,47 @@ async function runLocalDemo() {
     assert.equal(Number(lenderBalance), manifest.expectedSettlement.repaymentAmount);
     assert.equal(auditorCanView, true);
 
+    const missingDayIndex = manifest.privateReport.plaintext.dayIndex + 1;
+    const latestBlock = await publicClient.getBlock();
+    const missingReportDueAt = latestBlock.timestamp + 60n;
+
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "openReportWindow",
+      args: [
+        manifest.privateReport.plaintext.loanId,
+        missingDayIndex,
+        missingReportDueAt
+      ],
+      from: "lender"
+    });
+    await connection.provider.request({
+      method: "evm_increaseTime",
+      params: [61]
+    });
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "markReportMissing",
+      args: [manifest.privateReport.plaintext.loanId, missingDayIndex],
+      from: "lender"
+    });
+
+    const missingDayStatus = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getPublicDayStatus",
+      args: [manifest.privateReport.plaintext.loanId, missingDayIndex]
+    });
+    const missingDeadline = await readContract({
+      contractName: "DailySettlementWindow",
+      functionName: "getReportDeadline",
+      args: [manifest.privateReport.plaintext.loanId, missingDayIndex]
+    });
+
+    assert.equal(Number(missingDayStatus[0]), dayStatus.Missing);
+    assert.equal(missingDayStatus[1], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assert.equal(missingDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
+    assert.equal(missingDeadline, missingReportDueAt);
+
     return {
       name: "Quiet Till Local Settlement Demo",
       chainId,
@@ -306,6 +348,13 @@ async function runLocalDemo() {
         lenderFallbackTokenBalance: Number(lenderBalance),
         auditorCanView,
         auditorReceipt
+      },
+      complianceSla: {
+        missingDayIndex,
+        missingReportStatus: "Missing",
+        missingReportDueAt,
+        missingReportLeaksSales: false,
+        missingReportHasReceipt: false
       }
     };
   } finally {

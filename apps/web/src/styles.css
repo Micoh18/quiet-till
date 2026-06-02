@@ -837,7 +837,7 @@ button {
 
 .evidence-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -876,12 +876,14 @@ button {
 }
 
 .evidence-private,
-.evidence-tamper {
+.evidence-tamper,
+.evidence-sla {
   border-left-color: #0f766e;
 }
 
 .evidence-private strong,
-.evidence-tamper strong {
+.evidence-tamper strong,
+.evidence-sla strong {
   color: #0f766e;
 }
 

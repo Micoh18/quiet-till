@@ -45,6 +45,10 @@ function main() {
     transcript.privateMode.visibleToAuditor.privateReceipt.receiptHash,
     transcript.privateMode.visibleToMarket.privateReceiptHash
   );
+  assert.equal(transcript.complianceSla.missingDayIndex, 5);
+  assert.equal(transcript.complianceSla.missingStatus, "Missing");
+  assert.equal(transcript.complianceSla.missingReportLeaksGrossSales, false);
+  assert.equal(transcript.complianceSla.missingReportCreatesReceipt, false);
   assert.notEqual(
     transcript.privateMode.visibleToAuditor.tamperedGrossSalesReceiptHash,
     transcript.privateMode.visibleToMarket.privateReceiptHash

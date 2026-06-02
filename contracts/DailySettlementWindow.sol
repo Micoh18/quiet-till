@@ -40,7 +40,8 @@ contract DailySettlementWindow {
         ReportSubmitted,
         DecryptRequested,
         Settled,
-        Failed
+        Failed,
+        Missing
     }
 
     struct SettlementDay {
@@ -54,6 +55,7 @@ contract DailySettlementWindow {
         DayStatus status;
         uint256 submittedAt;
         uint256 settledAt;
+        uint256 dueAt;
     }
 
     struct PendingDecrypt {
@@ -82,6 +84,10 @@ contract DailySettlementWindow {
     error InvalidReportDay();
     error InvalidSalesAmount();
     error InvalidReportCommitment();
+    error InvalidReportDeadline();
+    error ReportWindowNotOpened();
+    error ReportDeadlineActive();
+    error ReportDeadlineExpired();
     error InvalidCTXCallbackGas();
     error InvalidCTXArguments();
     error InvalidCTXCallbackSender();
@@ -93,6 +99,12 @@ contract DailySettlementWindow {
     event CtxSubmitterUpdated(address indexed previousCtxSubmitter, address indexed nextCtxSubmitter);
     event SettlementVaultUpdated(address indexed previousSettlementVault, address indexed nextSettlementVault);
     event MaxGrossSalesUpdated(uint256 previousMaxGrossSales, uint256 nextMaxGrossSales);
+    event ReportWindowOpened(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        uint256 indexed merchantId,
+        uint256 dueAt
+    );
     event EncryptedReportSubmitted(
         uint256 indexed loanId,
         uint256 indexed dayIndex,
@@ -113,6 +125,12 @@ contract DailySettlementWindow {
         uint256 indexed dayIndex,
         bytes32 indexed requestId,
         bytes32 failureReasonHash
+    );
+    event DailyReportMissing(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        uint256 indexed merchantId,
+        uint256 dueAt
     );
 
     uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
@@ -222,6 +240,40 @@ contract DailySettlementWindow {
         _submitEncryptedReport(loanId, dayIndex, encryptedReport, bytes32(0));
     }
 
+    function openReportWindow(uint256 loanId, uint256 dayIndex, uint256 dueAt) external {
+        if (dueAt < block.timestamp) {
+            revert InvalidReportDeadline();
+        }
+
+        if (!_canRequestSettlement(loanId, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
+
+        if (day.loanId != 0 || day.status != DayStatus.Open) {
+            revert DayAlreadyReported();
+        }
+
+        uint256 merchantId = revenueLoan.merchantIdFor(loanId);
+
+        _settlementDays[loanId][dayIndex] = SettlementDay({
+            loanId: loanId,
+            merchantId: merchantId,
+            dayIndex: dayIndex,
+            encryptedReport: hex"",
+            encryptedReportHash: bytes32(0),
+            plaintextCommitmentHash: bytes32(0),
+            privateReceiptHash: bytes32(0),
+            status: DayStatus.Open,
+            submittedAt: 0,
+            settledAt: 0,
+            dueAt: dueAt
+        });
+
+        emit ReportWindowOpened(loanId, dayIndex, merchantId, dueAt);
+    }
+
     function submitEncryptedReportWithCommitment(
         uint256 loanId,
         uint256 dayIndex,
@@ -309,6 +361,30 @@ contract DailySettlementWindow {
         emit DailySettlementFailed(pending.loanId, pending.dayIndex, requestId, failureReasonHash);
     }
 
+    function markReportMissing(uint256 loanId, uint256 dayIndex) external {
+        if (!_canRequestSettlement(loanId, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
+
+        if (day.loanId == 0 || day.dueAt == 0) {
+            revert ReportWindowNotOpened();
+        }
+
+        if (day.status != DayStatus.Open) {
+            revert DayAlreadyReported();
+        }
+
+        if (block.timestamp < day.dueAt) {
+            revert ReportDeadlineActive();
+        }
+
+        day.status = DayStatus.Missing;
+
+        emit DailyReportMissing(loanId, dayIndex, day.merchantId, day.dueAt);
+    }
+
     function getPublicDayStatus(uint256 loanId, uint256 dayIndex)
         external
         view
@@ -317,6 +393,10 @@ contract DailySettlementWindow {
         SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
         return (day.status, day.encryptedReportHash, day.privateReceiptHash);
+    }
+
+    function getReportDeadline(uint256 loanId, uint256 dayIndex) external view returns (uint256) {
+        return _settlementDays[loanId][dayIndex].dueAt;
     }
 
     function _submitEncryptedReport(
@@ -335,7 +415,12 @@ contract DailySettlementWindow {
             revert DayAlreadyReported();
         }
 
+        if (day.dueAt != 0 && block.timestamp > day.dueAt) {
+            revert ReportDeadlineExpired();
+        }
+
         uint256 merchantId = revenueLoan.merchantIdFor(loanId);
+        uint256 dueAt = day.dueAt;
 
         if (!merchantRegistry.isPosAgentFor(merchantId, msg.sender)) {
             revert Unauthorized();
@@ -353,7 +438,8 @@ contract DailySettlementWindow {
             privateReceiptHash: bytes32(0),
             status: DayStatus.ReportSubmitted,
             submittedAt: block.timestamp,
-            settledAt: 0
+            settledAt: 0,
+            dueAt: dueAt
         });
 
         emit EncryptedReportSubmitted(loanId, dayIndex, merchantId, encryptedReportHash);

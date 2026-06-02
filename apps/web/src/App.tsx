@@ -8,6 +8,7 @@ import {
   Calculator,
   CheckCircle,
   ClipboardCheck,
+  Clock,
   CircleDollarSign,
   Eye,
   EyeOff,
@@ -405,6 +406,12 @@ function JudgeEvidencePanel() {
     {
       label: "Tamper caught",
       passed: judgeEvidence.passConditions.tamperSensitivity
+    },
+    {
+      label: "Missing day sealed",
+      passed:
+        judgeEvidence.passConditions.missingReportDoesNotLeakSales &&
+        judgeEvidence.passConditions.missingReportDoesNotCreateReceipt
     }
   ];
 
@@ -433,11 +440,20 @@ function JudgeEvidencePanel() {
           <strong>{judgeEvidence.tamperCheck.tamperDetected ? "detected" : "missed"}</strong>
           <small>{display.shortHash(judgeEvidence.tamperCheck.tamperedReceiptHash)}</small>
         </div>
+        <div className="evidence-column evidence-sla">
+          <span>Report SLA</span>
+          <strong>{judgeEvidence.complianceSla.missingStatus}</strong>
+          <small>Day {judgeEvidence.complianceSla.missingDayIndex} has no sales leak</small>
+        </div>
       </div>
       <div className="condition-row">
         {conditions.map((condition) => (
           <span className="condition-pill" key={condition.label}>
-            <CheckCircle aria-hidden="true" />
+            {condition.label === "Missing day sealed" ? (
+              <Clock aria-hidden="true" />
+            ) : (
+              <CheckCircle aria-hidden="true" />
+            )}
             {condition.label}: {condition.passed ? "pass" : "fail"}
           </span>
         ))}
