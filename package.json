@@ -12,6 +12,7 @@
   "devDependencies": {
     "@types/node": "^22.19.19",
     "hardhat": "^3.7.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "viem": "^2.52.0"
   }
 }
