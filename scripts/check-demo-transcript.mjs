@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildTranscript } from "../lib/demo-fixture.mjs";
+import { buildDemoFlow, buildTranscript } from "../lib/demo-fixture.mjs";
 
 function main() {
   const transcript = buildTranscript();
@@ -40,6 +40,19 @@ function main() {
     transcript.expectedDelta.privateReceiptHash,
     transcript.privateMode.visibleToMarket.privateReceiptHash
   );
+
+  const flow = buildDemoFlow();
+
+  assert.deepEqual(
+    flow.map((step) => step.key),
+    ["public-leak", "encrypted-report", "ctx-settlement", "auditor-proof"]
+  );
+  assert.deepEqual(
+    flow.map((step) => step.view),
+    ["public", "merchant", "merchant", "auditor"]
+  );
+  assert.equal(flow[0].tone, "danger");
+  assert.equal(flow[3].event.includes("tampered sales"), true);
 
   console.log("Demo transcript check passed.");
 }
