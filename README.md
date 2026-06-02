@@ -32,19 +32,19 @@ SKALE Programmable Privacy Hackathon.
 
 ## Status
 
-Early hackathon MVP with the first contract layer in place.
+Early hackathon MVP with core contracts, a local demo, a BITE report-preparation path, and a CTX-compatible settlement callback in place.
 
 ## Current Contract Surface
 
 - `MerchantRegistry`: registers merchants, POS agents, and auditors.
 - `RevenueLoan`: stores revenue-based loan terms, applies capped daily repayments, and keeps exact outstanding snapshots behind participant-only ABI reads.
 - `AuditorDisclosure`: records private receipt metadata and exposes it only to the authorized auditor, admin, or settlement window.
-- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, accepts an authorized decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
+- `DailySettlementWindow`: stores encrypted report payloads, requests settlement, can submit a CTX request through the SKALE submitter precompile, accepts only the authorized manual or CTX decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
 - `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
 - `PublicModeSimulator`: publishes sales and competitor signals for the public-mode comparison.
 
-The current settlement tests use encoded plaintext to simulate the post-decryption callback. The next integration step is wiring SKALE BITE/CTX so the encrypted report path is backed by the live privacy primitive instead of a test callback.
+The local tests still use encoded plaintext to simulate the post-decryption bytes, but the contract now includes the CTX callback shape required by SKALE: `onDecrypt(bytes[] decryptedArguments, bytes[] plaintextArguments)`. The next integration step is running that path against a live SKALE Programmable Privacy chain.
 
 Decrypt failures can now be marked by the authorized callback without revealing sales data. Failed days keep the encrypted report hash and can be retried through a new settlement request.
 
@@ -88,6 +88,14 @@ Build a deterministic local demo manifest:
 npm run demo:manifest
 ```
 
+Prepare a private sales report envelope:
+
+```bash
+npm run report:prepare -- --mock
+```
+
+For live SKALE BITE encryption, set `QUIET_TILL_RPC_URL` and `QUIET_TILL_DAILY_SETTLEMENT_WINDOW_ADDRESS`, then run `npm run report:prepare` without `--mock`.
+
 Print the deterministic public-vs-private demo transcript:
 
 ```bash
@@ -124,6 +132,12 @@ Check the manifest against compiled artifacts and expected repayment math:
 npm run demo:check
 ```
 
+Check local BITE report envelope generation:
+
+```bash
+npm run report:check
+```
+
 Run the full local quality gate:
 
 ```bash
@@ -135,6 +149,8 @@ GitHub Actions runs the same `npm run verify` gate on pushes to `main` and on pu
 The demo manifest describes contract constructor arguments, setup calls, the encoded sales report payload, and the expected repayment result for "La Barra". It is deterministic input for scripts and UI work; it is not production encrypted data.
 
 The transcript turns that manifest into the core demo story: public mode leaks gross sales and a competitor signal, while private mode exposes only status and hashes to the market and keeps the revenue details for the auditor path.
+
+`npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 
