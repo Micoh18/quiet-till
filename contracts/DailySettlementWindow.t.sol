@@ -22,6 +22,10 @@ contract SettlementActor {
         window.onDecrypt(requestId, decryptedReport);
     }
 
+    function markDecryptFailed(DailySettlementWindow window, bytes32 requestId, bytes32 failureReasonHash) external {
+        window.markDecryptFailed(requestId, failureReasonHash);
+    }
+
     function setMaxGrossSales(DailySettlementWindow window, uint256 nextMaxGrossSales) external {
         window.setMaxGrossSales(nextMaxGrossSales);
     }
@@ -113,6 +117,62 @@ contract DailySettlementWindowTest {
             revert("expected unauthorized decrypt callback");
         } catch (bytes memory) {
             require(true, "unauthorized decrypt callback rejected");
+        }
+    }
+
+    function testDecryptCallbackCanMarkSettlementFailed() public {
+        Fixture memory fixture = _deployFixture();
+        bytes32 failureReasonHash = keccak256("BITE_DECRYPT_TIMEOUT");
+
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.markDecryptFailed(requestId, failureReasonHash);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            bytes32 encryptedReportHash,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+        (,, bool pendingExists) = fixture.window.pendingDecrypts(requestId);
+
+        require(status == DailySettlementWindow.DayStatus.Failed, "day should be failed");
+        require(encryptedReportHash == keccak256(ENCRYPTED_REPORT), "encrypted hash mismatch");
+        require(privateReceiptHash == bytes32(0), "failed day should not have receipt");
+        require(!pendingExists, "failed request should be cleared");
+    }
+
+    function testRetriesFailedSettlementAndSettles() public {
+        Fixture memory fixture = _deployFixture();
+
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 failedRequestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.markDecryptFailed(failedRequestId, keccak256("CTX_RETRY"));
+
+        bytes32 retryRequestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(retryRequestId, _salesReport(1_240, 99));
+
+        (
+            DailySettlementWindow.DayStatus status,
+            ,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+
+        require(status == DailySettlementWindow.DayStatus.Settled, "retry should settle day");
+        require(privateReceiptHash != bytes32(0), "retry should set receipt hash");
+        require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "retry outstanding mismatch");
+    }
+
+    function testRejectsUnauthorizedDecryptFailure() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor unauthorized = new SettlementActor();
+
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+
+        try unauthorized.markDecryptFailed(fixture.window, requestId, keccak256("UNAUTHORIZED_FAILURE")) {
+            revert("expected unauthorized decrypt failure");
+        } catch (bytes memory) {
+            require(true, "unauthorized decrypt failure rejected");
         }
     }
 

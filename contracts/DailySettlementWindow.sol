@@ -93,6 +93,12 @@ contract DailySettlementWindow {
     );
     event DailySettlementRequested(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 indexed requestId);
     event DailySettlementSettled(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 privateReceiptHash);
+    event DailySettlementFailed(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        bytes32 indexed requestId,
+        bytes32 failureReasonHash
+    );
 
     uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
@@ -228,7 +234,7 @@ contract DailySettlementWindow {
             revert DayAlreadySettled();
         }
 
-        if (day.status != DayStatus.ReportSubmitted) {
+        if (day.status != DayStatus.ReportSubmitted && day.status != DayStatus.Failed) {
             revert DayAlreadyReported();
         }
 
@@ -267,6 +273,10 @@ contract DailySettlementWindow {
             revert DayAlreadySettled();
         }
 
+        if (day.status != DayStatus.DecryptRequested) {
+            revert DayAlreadyReported();
+        }
+
         SalesReportPlaintext memory report = abi.decode(decryptedReport, (SalesReportPlaintext));
 
         if (report.loanId != pending.loanId) {
@@ -303,6 +313,25 @@ contract DailySettlementWindow {
         );
 
         emit DailySettlementSettled(report.loanId, report.dayIndex, privateReceiptHash);
+    }
+
+    function markDecryptFailed(bytes32 requestId, bytes32 failureReasonHash) external onlyDecryptCallback {
+        PendingDecrypt memory pending = pendingDecrypts[requestId];
+
+        if (!pending.exists) {
+            revert UnknownDecryptRequest();
+        }
+
+        SettlementDay storage day = settlementDays[pending.loanId][pending.dayIndex];
+
+        if (day.status != DayStatus.DecryptRequested) {
+            revert DayAlreadyReported();
+        }
+
+        day.status = DayStatus.Failed;
+        delete pendingDecrypts[requestId];
+
+        emit DailySettlementFailed(pending.loanId, pending.dayIndex, requestId, failureReasonHash);
     }
 
     function getPublicDayStatus(uint256 loanId, uint256 dayIndex)
