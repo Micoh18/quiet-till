@@ -21,6 +21,15 @@ function main() {
     transcript.privateMode.visibleToMarket.privateReceiptHash,
     "0x8e05af5fbae10a8897a460032a3d9684bffe2ec13e35c8b0ceb247411a0de8b7"
   );
+  assert.equal(transcript.privateMode.visibleToLender.paymentStatus, "PaymentRecorded");
+  assert.equal(transcript.privateMode.visibleToLender.tokenSymbol, "qUSD");
+  assert.equal(transcript.privateMode.visibleToLender.repaymentAmount, 99);
+  assert.equal(transcript.privateMode.visibleToLender.outstandingAfter, 9_901);
+  assert.equal(transcript.privateMode.visibleToLender.fallbackPaymentIsPublic, true);
+  assert.equal(
+    transcript.privateMode.visibleToLender.privateReceiptHash,
+    transcript.privateMode.visibleToMarket.privateReceiptHash
+  );
   assert.equal(transcript.privateMode.visibleToAuditor.grossSales, 1_240);
   assert.equal(transcript.privateMode.visibleToAuditor.repaymentAmount, 99);
   assert.equal(transcript.privateMode.visibleToAuditor.outstandingBefore, 10_000);
@@ -45,14 +54,15 @@ function main() {
 
   assert.deepEqual(
     flow.map((step) => step.key),
-    ["public-leak", "encrypted-report", "ctx-settlement", "auditor-proof"]
+    ["public-leak", "encrypted-report", "ctx-settlement", "lender-receipt", "auditor-proof"]
   );
   assert.deepEqual(
     flow.map((step) => step.view),
-    ["public", "merchant", "merchant", "auditor"]
+    ["public", "merchant", "merchant", "lender", "auditor"]
   );
   assert.equal(flow[0].tone, "danger");
-  assert.equal(flow[3].event.includes("tampered sales"), true);
+  assert.equal(flow[3].event.includes("Lender sees 99 qUSD"), true);
+  assert.equal(flow[4].event.includes("tampered sales"), true);
 
   console.log("Demo transcript check passed.");
 }

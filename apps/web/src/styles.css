@@ -364,6 +364,9 @@ button {
 .register-screen,
 .privacy-path,
 .audit-ledger,
+.lender-ledger,
+.lender-receipt,
+.payment-boundary,
 .receipt-proof,
 .judge-evidence,
 .encoded-block,
@@ -663,6 +666,68 @@ button {
   padding: 14px;
 }
 
+.lender-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+.lender-receipt {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-color: rgba(13, 148, 136, 0.22);
+  background: #f7fffb;
+}
+
+.lender-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lender-proof-grid div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lender-proof-grid span {
+  color: #55706a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.lender-proof-grid code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #0f766e;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.payment-boundary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border-color: rgba(217, 119, 6, 0.24);
+  background: #fffbf2;
+}
+
+.payment-boundary p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: #7c5c18;
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 .receipt-proof {
   display: grid;
   gap: 14px;
@@ -871,6 +936,8 @@ button {
 
   .privacy-path,
   .audit-ledger,
+  .lender-ledger,
+  .lender-proof-grid,
   .evidence-grid,
   .proof-grid {
     grid-template-columns: 1fr;

@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { demoFlow, display, fixture, judgeEvidence, manifest, settlementPath, transcript } from "./demoData";
 
-type ViewKey = "merchant" | "public" | "auditor";
+type ViewKey = "merchant" | "public" | "lender" | "auditor";
 type StepKey = (typeof demoFlow)[number]["key"];
 
 type NavItem = {
@@ -38,6 +38,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { key: "merchant", label: "Merchant", icon: Terminal },
   { key: "public", label: "Market", icon: Eye },
+  { key: "lender", label: "Lender", icon: Landmark },
   { key: "auditor", label: "Auditor", icon: ShieldCheck }
 ];
 
@@ -212,7 +213,7 @@ function ScenarioRail({
 function MerchantView({ activeStep, onAdvance }: { activeStep: StepKey; onAdvance: () => void }) {
   const actionLabel =
     activeStep === "ctx-settlement"
-      ? "Open auditor proof"
+      ? "Open lender receipt"
       : activeStep === "encrypted-report"
         ? "Request CTX close"
         : `Seal day ${fixture.report.dayIndex}`;
@@ -433,6 +434,76 @@ function JudgeEvidencePanel() {
   );
 }
 
+function LenderView({ onAdvance }: { onAdvance: () => void }) {
+  const lender = transcript.privateMode.visibleToLender;
+
+  return (
+    <section className="view-grid view-lender" aria-labelledby="lender-heading">
+      <div className="view-title">
+        <Landmark aria-hidden="true" />
+        <div>
+          <p>Lender receipt</p>
+          <h2 id="lender-heading">Settlement received</h2>
+        </div>
+      </div>
+
+      <div className="lender-ledger">
+        <Metric
+          icon={CircleDollarSign}
+          label="Recorded payment"
+          value={display.amount(lender.repaymentAmount)}
+          tone="good"
+        />
+        <Metric
+          icon={Landmark}
+          label="Outstanding after"
+          value={display.amount(lender.outstandingAfter)}
+        />
+        <Metric
+          icon={Receipt}
+          label="Payment status"
+          value={lender.paymentStatus}
+          tone="good"
+        />
+      </div>
+
+      <div className="lender-receipt">
+        <div className="proof-status">
+          <StatusPill icon={CheckCircle} label="Bound to private receipt" tone="good" />
+          <StatusPill icon={Wallet} label={lender.tokenSymbol} />
+        </div>
+        <div className="lender-proof-grid">
+          <div>
+            <span>Lender</span>
+            <code>{display.shortHash(lender.lender)}</code>
+          </div>
+          <div>
+            <span>Private receipt hash</span>
+            <code>{display.shortHash(lender.privateReceiptHash)}</code>
+          </div>
+          <div>
+            <span>Payment privacy</span>
+            <code>{lender.fallbackPaymentIsPublic ? "fallback public token" : "confidential token"}</code>
+          </div>
+        </div>
+      </div>
+
+      <div className="payment-boundary">
+        <StatusPill icon={AlertTriangle} label="Payment privacy fallback" tone="warn" />
+        <p>{lender.confidentialPaymentStatus}</p>
+      </div>
+
+      <div className="action-row">
+        <button type="button" className="primary-action" onClick={onAdvance}>
+          <ShieldCheck aria-hidden="true" />
+          Open auditor proof
+        </button>
+        <StatusPill icon={Hash} label="Receipt hash links every role" tone="good" />
+      </div>
+    </section>
+  );
+}
+
 function AuditorView() {
   const auditor = transcript.privateMode.visibleToAuditor;
   const receipt = auditor.privateReceipt;
@@ -542,6 +613,7 @@ export function App() {
         <section className="demo-surface">
           {activeView === "merchant" ? <MerchantView activeStep={activeStep} onAdvance={advanceStep} /> : null}
           {activeView === "public" ? <PublicView onAdvance={advanceStep} /> : null}
+          {activeView === "lender" ? <LenderView onAdvance={advanceStep} /> : null}
           {activeView === "auditor" ? <AuditorView /> : null}
         </section>
       </section>

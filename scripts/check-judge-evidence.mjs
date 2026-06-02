@@ -7,10 +7,10 @@ function main() {
   assert.equal(evidence.name, "Quiet Till Judge Evidence Bundle");
   assert.equal(evidence.version, 1);
   assert.deepEqual(evidence.tracks, ["Compliant Onchain Finance", "Private Markets"]);
-  assert.equal(evidence.demoMinuteFlow.length, 4);
+  assert.equal(evidence.demoMinuteFlow.length, 5);
   assert.deepEqual(
     evidence.demoMinuteFlow.map((step) => step.key),
-    ["public-leak", "encrypted-report", "ctx-settlement", "auditor-proof"]
+    ["public-leak", "encrypted-report", "ctx-settlement", "lender-receipt", "auditor-proof"]
   );
 
   assert.equal(evidence.publicObserver.publicMode.visibleGrossSales, 1_240);
@@ -20,6 +20,13 @@ function main() {
   assert.equal(evidence.publicObserver.privacyDelta.publicModeLeaksGrossSales, true);
   assert.equal(evidence.publicObserver.privacyDelta.quietTillHidesGrossSales, true);
   assert.equal(evidence.publicObserver.privacyDelta.quietTillHidesProjectedRepayment, true);
+
+  assert.equal(evidence.lenderEvidence.paymentStatus, "PaymentRecorded");
+  assert.equal(evidence.lenderEvidence.tokenSymbol, "qUSD");
+  assert.equal(evidence.lenderEvidence.repaymentAmount, 99);
+  assert.equal(evidence.lenderEvidence.outstandingAfter, 9_901);
+  assert.equal(evidence.lenderEvidence.receiptCommitmentMatches, true);
+  assert.equal(evidence.lenderEvidence.fallbackPaymentIsPublic, true);
 
   assert.equal(evidence.auditorEvidence.receiptCommitmentMatches, true);
   assert.equal(evidence.auditorEvidence.grossSales, 1_240);
@@ -34,9 +41,10 @@ function main() {
   assert.equal(evidence.skalePrivacyUse.encryptedReportStoredOnchain, true);
   assert.equal(evidence.skalePrivacyUse.ctxSubmitterPrecompile, "0x1B");
   assert.equal(evidence.skalePrivacyUse.publicLeakBlocked, true);
-  assert.equal(evidence.passConditions.hasFourStepDemoFlow, true);
+  assert.equal(evidence.passConditions.hasCompleteRoleFlow, true);
   assert.equal(evidence.passConditions.noQuietTillPublicGrossSales, true);
   assert.equal(evidence.passConditions.noQuietTillPublicProjectedRepayment, true);
+  assert.equal(evidence.passConditions.lenderReceiptBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
 
