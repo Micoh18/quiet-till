@@ -1,10 +1,12 @@
 import { buildDemoFlow, buildManifest, buildTranscript, demo } from "../../../lib/demo-fixture.mjs";
 import { buildJudgeEvidence } from "../../../lib/judge-evidence.mjs";
+import { buildSubmissionReadiness } from "../../../lib/submission-readiness.mjs";
 
 export const manifest = buildManifest();
 export const transcript = buildTranscript();
 export const demoFlow = buildDemoFlow();
 export const judgeEvidence = buildJudgeEvidence();
+export const submissionReadiness = buildSubmissionReadiness();
 export const fixture = demo;
 
 export const display = {
