@@ -253,7 +253,8 @@ async function runLocalDemo() {
     const auditorCanView = await readContract({
       contractName: "AuditorDisclosure",
       functionName: "canViewReceipt",
-      args: [publicDayStatus[2], manifest.actors.auditor]
+      args: [publicDayStatus[2], manifest.actors.auditor],
+      from: "auditor"
     });
 
     assert.equal(Number(publicDayStatus[0]), dayStatus.Settled);

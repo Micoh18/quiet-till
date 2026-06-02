@@ -21,6 +21,18 @@ contract DisclosureActor {
     {
         return disclosure.getReceiptMeta(receiptHash);
     }
+
+    function canViewReceipt(AuditorDisclosure disclosure, bytes32 receiptHash, address viewer)
+        external
+        view
+        returns (bool)
+    {
+        return disclosure.canViewReceipt(receiptHash, viewer);
+    }
+
+    function auditorForReceipt(AuditorDisclosure disclosure, bytes32 receiptHash) external view returns (address) {
+        return disclosure.auditorForReceipt(receiptHash);
+    }
 }
 
 contract AuditorDisclosureTest {
@@ -53,6 +65,18 @@ contract AuditorDisclosureTest {
         require(!disclosure.canViewReceipt(RECEIPT_HASH, VIEWER), "viewer should not view");
     }
 
+    function testAuditorCanReadOwnReceiptMetadata() public {
+        AuditorDisclosure disclosure = _configuredDisclosure();
+        DisclosureActor auditor = new DisclosureActor();
+
+        disclosure.registerReceipt(LOAN_ID, DAY_INDEX, RECEIPT_HASH, address(auditor));
+
+        AuditorDisclosure.PrivateReceiptMeta memory meta = auditor.getReceiptMeta(disclosure, RECEIPT_HASH);
+
+        require(meta.auditor == address(auditor), "auditor mismatch");
+        require(meta.receiptHash == RECEIPT_HASH, "receipt hash mismatch");
+    }
+
     function testRejectsUnauthorizedReceiptMetaRead() public {
         AuditorDisclosure disclosure = _configuredDisclosure();
         DisclosureActor viewer = new DisclosureActor();
@@ -62,6 +86,30 @@ contract AuditorDisclosureTest {
             revert("expected unauthorized metadata read");
         } catch (bytes memory) {
             require(true, "unauthorized metadata read rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedAccessProbe() public {
+        AuditorDisclosure disclosure = _configuredDisclosure();
+        DisclosureActor viewer = new DisclosureActor();
+        disclosure.registerReceipt(LOAN_ID, DAY_INDEX, RECEIPT_HASH, AUDITOR);
+
+        try viewer.canViewReceipt(disclosure, RECEIPT_HASH, AUDITOR) {
+            revert("expected unauthorized access probe");
+        } catch (bytes memory) {
+            require(true, "unauthorized access probe rejected");
+        }
+    }
+
+    function testRejectsUnauthorizedAuditorLookup() public {
+        AuditorDisclosure disclosure = _configuredDisclosure();
+        DisclosureActor viewer = new DisclosureActor();
+        disclosure.registerReceipt(LOAN_ID, DAY_INDEX, RECEIPT_HASH, AUDITOR);
+
+        try viewer.auditorForReceipt(disclosure, RECEIPT_HASH) {
+            revert("expected unauthorized auditor lookup");
+        } catch (bytes memory) {
+            require(true, "unauthorized auditor lookup rejected");
         }
     }
 

@@ -21,8 +21,7 @@ contract AuditorDisclosure {
     event PrivateReceiptRegistered(
         uint256 indexed loanId,
         uint256 indexed dayIndex,
-        bytes32 indexed receiptHash,
-        address auditor
+        bytes32 indexed receiptHash
     );
 
     address public admin;
@@ -101,7 +100,7 @@ contract AuditorDisclosure {
         });
         receiptHashForDay[loanId][dayIndex] = receiptHash;
 
-        emit PrivateReceiptRegistered(loanId, dayIndex, receiptHash, auditor);
+        emit PrivateReceiptRegistered(loanId, dayIndex, receiptHash);
     }
 
     function getReceiptMeta(bytes32 receiptHash) external view returns (PrivateReceiptMeta memory) {
@@ -117,11 +116,21 @@ contract AuditorDisclosure {
     function canViewReceipt(bytes32 receiptHash, address viewer) external view returns (bool) {
         PrivateReceiptMeta storage meta = _registeredReceipt(receiptHash);
 
+        if (msg.sender != viewer && msg.sender != admin && msg.sender != settlementWindow) {
+            revert Unauthorized();
+        }
+
         return meta.auditor == viewer;
     }
 
     function auditorForReceipt(bytes32 receiptHash) external view returns (address) {
-        return _registeredReceipt(receiptHash).auditor;
+        PrivateReceiptMeta storage meta = _registeredReceipt(receiptHash);
+
+        if (!_canViewMeta(meta, msg.sender)) {
+            revert Unauthorized();
+        }
+
+        return meta.auditor;
     }
 
     function _registeredReceipt(bytes32 receiptHash) private view returns (PrivateReceiptMeta storage meta) {
