@@ -40,8 +40,12 @@ Early hackathon MVP with the first contract layer in place.
 - `RevenueLoan`: stores revenue-based loan terms and applies capped daily repayments.
 - `AuditorDisclosure`: records private receipt metadata for authorized auditors.
 - `DailySettlementWindow`: stores encrypted report payloads, requests settlement, and accepts an authorized decrypt callback.
+- `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
+- `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
 
 The current settlement tests use encoded plaintext to simulate the post-decryption callback. The next integration step is wiring SKALE BITE/CTX so the encrypted report path is backed by the live privacy primitive instead of a test callback.
+
+The fallback token payment is intentionally public. It is useful for demonstrating repayment movement while confidential tokens remain a separate integration target.
 
 ## Development
 
@@ -66,3 +70,5 @@ npm test
 ## Privacy Boundary
 
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
+
+Fallback ERC20 payments can reveal repayment amounts. The long-term path is to replace that fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
