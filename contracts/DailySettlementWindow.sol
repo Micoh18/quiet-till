@@ -23,6 +23,17 @@ interface ISettlementAuditorDisclosure {
     function registerReceipt(uint256 loanId, uint256 dayIndex, bytes32 receiptHash, address auditor) external;
 }
 
+interface ISettlementVault {
+    function settlePublicFallbackPayment(
+        uint256 loanId,
+        uint256 dayIndex,
+        address borrower,
+        address lender,
+        uint256 amount,
+        bytes32 privateReceiptHash
+    ) external;
+}
+
 contract DailySettlementWindow {
     enum DayStatus {
         Open,
@@ -71,6 +82,7 @@ contract DailySettlementWindow {
 
     event AdminTransferred(address indexed previousAdmin, address indexed nextAdmin);
     event DecryptCallbackUpdated(address indexed previousDecryptCallback, address indexed nextDecryptCallback);
+    event SettlementVaultUpdated(address indexed previousSettlementVault, address indexed nextSettlementVault);
     event EncryptedReportSubmitted(
         uint256 indexed loanId,
         uint256 indexed dayIndex,
@@ -87,6 +99,7 @@ contract DailySettlementWindow {
     ISettlementMerchantRegistry public immutable merchantRegistry;
     ISettlementRevenueLoan public immutable revenueLoan;
     ISettlementAuditorDisclosure public immutable auditorDisclosure;
+    ISettlementVault public settlementVault;
 
     mapping(uint256 => mapping(uint256 => SettlementDay)) public settlementDays;
     mapping(bytes32 => PendingDecrypt) public pendingDecrypts;
@@ -146,6 +159,13 @@ contract DailySettlementWindow {
         decryptCallback = nextDecryptCallback;
 
         emit DecryptCallbackUpdated(previousDecryptCallback, nextDecryptCallback);
+    }
+
+    function setSettlementVault(address nextSettlementVault) external onlyAdmin {
+        address previousSettlementVault = address(settlementVault);
+        settlementVault = ISettlementVault(nextSettlementVault);
+
+        emit SettlementVaultUpdated(previousSettlementVault, nextSettlementVault);
     }
 
     function submitEncryptedReport(uint256 loanId, uint256 dayIndex, bytes calldata encryptedReport) external {
@@ -255,6 +275,7 @@ contract DailySettlementWindow {
         delete pendingDecrypts[requestId];
 
         revenueLoan.applyRepayment(report.loanId, report.grossSales, report.dayIndex, privateReceiptHash);
+        _settlePublicFallbackPayment(report.loanId, report.dayIndex, repaymentAmount, privateReceiptHash);
         auditorDisclosure.registerReceipt(
             report.loanId,
             report.dayIndex,
@@ -292,6 +313,28 @@ contract DailySettlementWindow {
                 repaymentAmount,
                 report.nonce
             )
+        );
+    }
+
+    function _settlePublicFallbackPayment(
+        uint256 loanId,
+        uint256 dayIndex,
+        uint256 repaymentAmount,
+        bytes32 privateReceiptHash
+    ) private {
+        ISettlementVault vault = settlementVault;
+
+        if (address(vault) == address(0)) {
+            return;
+        }
+
+        vault.settlePublicFallbackPayment(
+            loanId,
+            dayIndex,
+            revenueLoan.borrowerFor(loanId),
+            revenueLoan.lenderFor(loanId),
+            repaymentAmount,
+            privateReceiptHash
         );
     }
 }
