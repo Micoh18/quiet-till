@@ -111,7 +111,7 @@ contract DailySettlementWindow {
     ISettlementAuditorDisclosure public immutable auditorDisclosure;
     ISettlementVault public settlementVault;
 
-    mapping(uint256 => mapping(uint256 => SettlementDay)) public settlementDays;
+    mapping(uint256 => mapping(uint256 => SettlementDay)) private _settlementDays;
     mapping(bytes32 => PendingDecrypt) public pendingDecrypts;
 
     modifier onlyAdmin() {
@@ -194,7 +194,7 @@ contract DailySettlementWindow {
             revert EmptyEncryptedReport();
         }
 
-        SettlementDay storage day = settlementDays[loanId][dayIndex];
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
         if (day.status != DayStatus.Open) {
             revert DayAlreadyReported();
@@ -208,7 +208,7 @@ contract DailySettlementWindow {
 
         bytes32 encryptedReportHash = keccak256(encryptedReport);
 
-        settlementDays[loanId][dayIndex] = SettlementDay({
+        _settlementDays[loanId][dayIndex] = SettlementDay({
             loanId: loanId,
             merchantId: merchantId,
             dayIndex: dayIndex,
@@ -224,7 +224,7 @@ contract DailySettlementWindow {
     }
 
     function requestDailySettlement(uint256 loanId, uint256 dayIndex) external returns (bytes32 requestId) {
-        SettlementDay storage day = settlementDays[loanId][dayIndex];
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
         if (day.status == DayStatus.Open) {
             revert DayNotReported();
@@ -267,7 +267,7 @@ contract DailySettlementWindow {
             revert UnknownDecryptRequest();
         }
 
-        SettlementDay storage day = settlementDays[pending.loanId][pending.dayIndex];
+        SettlementDay storage day = _settlementDays[pending.loanId][pending.dayIndex];
 
         if (day.status == DayStatus.Settled) {
             revert DayAlreadySettled();
@@ -322,7 +322,7 @@ contract DailySettlementWindow {
             revert UnknownDecryptRequest();
         }
 
-        SettlementDay storage day = settlementDays[pending.loanId][pending.dayIndex];
+        SettlementDay storage day = _settlementDays[pending.loanId][pending.dayIndex];
 
         if (day.status != DayStatus.DecryptRequested) {
             revert DayAlreadyReported();
@@ -339,7 +339,7 @@ contract DailySettlementWindow {
         view
         returns (DayStatus status, bytes32 encryptedReportHash, bytes32 privateReceiptHash)
     {
-        SettlementDay storage day = settlementDays[loanId][dayIndex];
+        SettlementDay storage day = _settlementDays[loanId][dayIndex];
 
         return (day.status, day.encryptedReportHash, day.privateReceiptHash);
     }
