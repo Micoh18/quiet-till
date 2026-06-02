@@ -25,6 +25,10 @@ function main() {
   assert.equal(evidence.lenderEvidence.tokenSymbol, "qUSD");
   assert.equal(evidence.lenderEvidence.repaymentAmount, 99);
   assert.equal(evidence.lenderEvidence.outstandingAfter, 9_901);
+  assert.equal(
+    evidence.lenderEvidence.privatePaymentCommitmentHash,
+    "0x4ab387899f9fe69c8e350a6a9fba5d970b0a6839c36f86609867748d76d62424"
+  );
   assert.equal(evidence.lenderEvidence.receiptCommitmentMatches, true);
   assert.equal(evidence.lenderEvidence.fallbackPaymentIsPublic, true);
 
@@ -73,6 +77,7 @@ function main() {
   assert.equal(evidence.passConditions.plaintextCommitmentBinding, true);
   assert.equal(evidence.passConditions.publicReceiptBinding, true);
   assert.equal(evidence.passConditions.auditorEnvelopeBinding, true);
+  assert.equal(evidence.passConditions.hasPrivatePaymentCommitment, true);
   assert.equal(evidence.passConditions.tamperSensitivity, true);
   assert.equal(evidence.passConditions.missingReportDoesNotLeakSales, true);
   assert.equal(evidence.passConditions.missingReportDoesNotCreateReceipt, true);

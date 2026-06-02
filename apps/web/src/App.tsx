@@ -516,6 +516,10 @@ function LenderView({ onAdvance }: { onAdvance: () => void }) {
             <code>{display.shortHash(lender.privateReceiptHash)}</code>
           </div>
           <div>
+            <span>Private pay commitment</span>
+            <code>{display.shortHash(lender.privatePaymentCommitmentHash)}</code>
+          </div>
+          <div>
             <span>Payment privacy</span>
             <code>{lender.fallbackPaymentIsPublic ? "fallback public token" : "confidential token"}</code>
           </div>

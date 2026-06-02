@@ -25,6 +25,10 @@ function main() {
   assert.equal(transcript.privateMode.visibleToLender.tokenSymbol, "qUSD");
   assert.equal(transcript.privateMode.visibleToLender.repaymentAmount, 99);
   assert.equal(transcript.privateMode.visibleToLender.outstandingAfter, 9_901);
+  assert.equal(
+    transcript.privateMode.visibleToLender.privatePaymentCommitmentHash,
+    "0x4ab387899f9fe69c8e350a6a9fba5d970b0a6839c36f86609867748d76d62424"
+  );
   assert.equal(transcript.privateMode.visibleToLender.fallbackPaymentIsPublic, true);
   assert.equal(
     transcript.privateMode.visibleToLender.privateReceiptHash,

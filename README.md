@@ -42,6 +42,7 @@ Early hackathon MVP with core contracts, a local demo, a BITE report-preparation
 - `DailySettlementWindow`: stores encrypted report payloads, can bind a report to an optional plaintext commitment hash, opens report windows with deadlines, marks missed report windows without publishing sales, requests settlement, can submit a CTX request through the SKALE submitter precompile, accepts only the authorized manual or CTX decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
 - `SettlementVault`: moves fallback token repayments from borrower to lender when settlement completes.
+- `ConfidentialPaymentRail`: records amount-hiding payment commitments tied to private receipt hashes, modeling the confidential payment path without publishing repayment amounts.
 - `PublicModeSimulator`: publishes sales and competitor signals for the public-mode comparison.
 
 The local tests still use encoded plaintext to simulate the post-decryption bytes, but the contract now includes the CTX callback shape required by SKALE: `onDecrypt(bytes[] decryptedArguments, bytes[] plaintextArguments)`. The next integration step is running that path against a live SKALE Programmable Privacy chain.
@@ -52,7 +53,7 @@ The auditor path now also builds a local AES-GCM disclosure envelope around the 
 
 Decrypt failures can now be marked by the authorized callback without revealing sales data. Failed days keep the encrypted report hash and can be retried through a new settlement request.
 
-The fallback token payment is intentionally public. It is useful for demonstrating repayment movement while confidential tokens remain a separate integration target.
+The fallback token payment is intentionally public. It is useful for demonstrating repayment movement while confidential tokens remain a separate integration target. The separate confidential payment rail records a private payment commitment so the demo can show the intended amount-hiding path without pretending the fallback ERC20 transfer is confidential.
 
 ## Development
 
@@ -166,6 +167,12 @@ Check private receipt hashing:
 npm run receipt:check
 ```
 
+Check private payment commitment hashing:
+
+```bash
+npm run payment:check
+```
+
 Check the auditor disclosure envelope:
 
 ```bash
@@ -220,6 +227,6 @@ Report deadlines and missing-report covenant strikes are public compliance state
 
 `AuditorDisclosure` keeps receipt metadata behind authorized reads. Public observers can see the receipt hash, but not the disclosure metadata view used by the auditor path. Receipt registration events do not emit the auditor address, and access checks cannot be used by arbitrary callers to probe another viewer's authorization.
 
-Fallback ERC20 payments can reveal repayment amounts. The long-term path is to replace that fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
+Fallback ERC20 payments can reveal repayment amounts. The confidential payment rail avoids publishing the amount by committing to it with the private report nonce and receipt hash, but it does not move confidential tokens. The long-term path is to replace the fallback vault with SKALE confidential token settlement once the beta path is ready for the demo environment.
 
 `PublicModeSimulator` is intentionally leaky. It is a demo comparison surface, not the private settlement path.

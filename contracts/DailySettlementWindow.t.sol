@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "./AuditorDisclosure.sol";
+import "./ConfidentialPaymentRail.sol";
 import "./DailySettlementWindow.sol";
 import "./MerchantRegistry.sol";
 import "./MockPaymentToken.sol";
@@ -56,6 +57,10 @@ contract SettlementActor {
 
     function setMaxGrossSales(DailySettlementWindow window, uint256 nextMaxGrossSales) external {
         window.setMaxGrossSales(nextMaxGrossSales);
+    }
+
+    function setConfidentialPaymentRail(DailySettlementWindow window, address nextConfidentialPaymentRail) external {
+        window.setConfidentialPaymentRail(nextConfidentialPaymentRail);
     }
 }
 
@@ -315,6 +320,42 @@ contract DailySettlementWindowTest {
         require(fixture.loan.getOutstanding(LOAN_ID) == 9_901, "outstanding mismatch");
     }
 
+    function testConfiguredPaymentRailRecordsConfidentialCommitment() public {
+        RailFixture memory fixture = _deployRailFixture();
+
+        fixture.window.submitEncryptedReport(LOAN_ID, DAY_INDEX, ENCRYPTED_REPORT);
+        bytes32 requestId = fixture.window.requestDailySettlement(LOAN_ID, DAY_INDEX);
+        fixture.window.onDecrypt(requestId, _salesReport(1_240, 99));
+
+        (
+            DailySettlementWindow.DayStatus status,
+            ,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, DAY_INDEX);
+        (bytes32 commitmentHash, bytes32 railReceiptHash) =
+            fixture.paymentRail.getPublicPaymentStatus(LOAN_ID, DAY_INDEX);
+        ConfidentialPaymentRail.PaymentCommitment memory commitment =
+            fixture.paymentRail.getPaymentCommitment(commitmentHash);
+
+        require(status == DailySettlementWindow.DayStatus.Settled, "rail day should settle");
+        require(commitmentHash != bytes32(0), "payment commitment should be set");
+        require(railReceiptHash == privateReceiptHash, "rail receipt hash mismatch");
+        require(commitment.payer == MERCHANT_OWNER, "payer mismatch");
+        require(commitment.payee == LENDER, "payee mismatch");
+        require(commitment.privateReceiptHash == privateReceiptHash, "stored rail receipt mismatch");
+    }
+
+    function testRejectsUnauthorizedPaymentRailUpdate() public {
+        Fixture memory fixture = _deployFixture();
+        SettlementActor unauthorized = new SettlementActor();
+
+        try unauthorized.setConfidentialPaymentRail(fixture.window, address(0x5151)) {
+            revert("expected unauthorized payment rail update");
+        } catch (bytes memory) {
+            require(true, "unauthorized payment rail update rejected");
+        }
+    }
+
     function testCTXRequestAuthorizesEphemeralCallbackAndSettles() public {
         Fixture memory fixture = _deployFixture();
         SettlementActor ctxCallback = new SettlementActor();
@@ -518,6 +559,14 @@ contract DailySettlementWindowTest {
         SettlementBorrower borrower;
     }
 
+    struct RailFixture {
+        MerchantRegistry registry;
+        RevenueLoan loan;
+        AuditorDisclosure disclosure;
+        ConfidentialPaymentRail paymentRail;
+        DailySettlementWindow window;
+    }
+
     function _deployFixture() private returns (Fixture memory fixture) {
         fixture.registry = new MerchantRegistry(address(this));
         fixture.registry.registerMerchant(MERCHANT_ID, MERCHANT_OWNER, address(this), AUDITOR, "La Barra");
@@ -565,6 +614,30 @@ contract DailySettlementWindowTest {
         fixture.disclosure.setSettlementWindow(address(fixture.window));
         fixture.vault.setSettlementWindow(address(fixture.window));
         fixture.token.mint(address(fixture.borrower), 10_000);
+    }
+
+    function _deployRailFixture() private returns (RailFixture memory fixture) {
+        fixture.registry = new MerchantRegistry(address(this));
+        fixture.registry.registerMerchant(MERCHANT_ID, MERCHANT_OWNER, address(this), AUDITOR, "La Barra");
+
+        fixture.loan = new RevenueLoan(address(this), address(fixture.registry));
+        fixture.loan.createLoan(LOAN_ID, MERCHANT_ID, LENDER, MERCHANT_OWNER, 10_000, 800, 500);
+        fixture.loan.activateLoan(LOAN_ID);
+
+        fixture.disclosure = new AuditorDisclosure(address(this));
+        fixture.paymentRail = new ConfidentialPaymentRail(address(this));
+        fixture.window = new DailySettlementWindow(
+            address(this),
+            address(fixture.registry),
+            address(fixture.loan),
+            address(fixture.disclosure)
+        );
+
+        fixture.window.setDecryptCallback(address(this));
+        fixture.window.setConfidentialPaymentRail(address(fixture.paymentRail));
+        fixture.loan.setSettlementWindow(address(fixture.window));
+        fixture.disclosure.setSettlementWindow(address(fixture.window));
+        fixture.paymentRail.setSettlementWindow(address(fixture.window));
     }
 
     function _salesReport(uint256 grossSales, uint256 nonce) private pure returns (bytes memory) {

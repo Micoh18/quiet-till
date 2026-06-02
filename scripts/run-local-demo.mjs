@@ -18,6 +18,7 @@ import {
   assertAuditorDisclosureEnvelope,
   buildAuditorDisclosureEnvelope
 } from "../lib/auditor-disclosure-envelope.mjs";
+import { buildPaymentCommitment } from "../lib/private-payment-commitment.mjs";
 import {
   assertPrivateReceiptHash,
   buildPrivateReceipt
@@ -274,6 +275,11 @@ async function runLocalDemo() {
       functionName: "balanceOf",
       args: [manifest.actors.lender]
     });
+    const paymentStatus = await readContract({
+      contractName: "ConfidentialPaymentRail",
+      functionName: "getPublicPaymentStatus",
+      args: [manifest.privateReport.plaintext.loanId, manifest.privateReport.plaintext.dayIndex]
+    });
     const auditorCanView = await readContract({
       contractName: "AuditorDisclosure",
       functionName: "canViewReceipt",
@@ -297,6 +303,17 @@ async function runLocalDemo() {
     assert.equal(publicDayStatus[1], manifest.privateReport.encryptedReportHash);
     assert.notEqual(publicDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
     assertPrivateReceiptHash(auditorReceipt, publicDayStatus[2]);
+    const expectedPaymentCommitmentHash = buildPaymentCommitment({
+      chainId,
+      paymentRail: deployed.ConfidentialPaymentRail.address,
+      loanId: manifest.privateReport.plaintext.loanId,
+      dayIndex: manifest.privateReport.plaintext.dayIndex,
+      payer: manifest.actors.merchantOwner,
+      payee: manifest.actors.lender,
+      repaymentAmount: manifest.expectedSettlement.repaymentAmount,
+      nonce: manifest.privateReport.plaintext.nonce,
+      privateReceiptHash: publicDayStatus[2]
+    });
     const auditorDisclosureEnvelope = buildAuditorDisclosureEnvelope({
       receipt: auditorReceipt,
       keyMaterial: demoAuditorDisclosureKeyMaterial
@@ -309,6 +326,8 @@ async function runLocalDemo() {
 
     assert.equal(Number(outstanding), manifest.expectedSettlement.outstandingAfter);
     assert.equal(Number(lenderBalance), manifest.expectedSettlement.repaymentAmount);
+    assert.equal(paymentStatus[0], expectedPaymentCommitmentHash);
+    assert.equal(paymentStatus[1], publicDayStatus[2]);
     assert.equal(auditorCanView, true);
     assert.equal(decryptedAuditorReceipt.receiptHash, publicDayStatus[2]);
 
@@ -403,6 +422,7 @@ async function runLocalDemo() {
         status: "Settled",
         encryptedReportHash: publicDayStatus[1],
         privateReceiptHash: publicDayStatus[2],
+        privatePaymentCommitmentHash: paymentStatus[0],
         publicGrossSales: null,
         outstandingAfter: Number(outstanding),
         lenderFallbackTokenBalance: Number(lenderBalance),

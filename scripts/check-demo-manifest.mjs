@@ -9,6 +9,7 @@ const expectedContractOrder = [
   "AuditorDisclosure",
   "MockPaymentToken",
   "SettlementVault",
+  "ConfidentialPaymentRail",
   "DailySettlementWindow",
   "PublicModeSimulator"
 ];
@@ -19,9 +20,11 @@ const expectedSetupCalls = [
   "RevenueLoan.activateLoan",
   "DailySettlementWindow.setDecryptCallback",
   "DailySettlementWindow.setSettlementVault",
+  "DailySettlementWindow.setConfidentialPaymentRail",
   "RevenueLoan.setSettlementWindow",
   "AuditorDisclosure.setSettlementWindow",
   "SettlementVault.setSettlementWindow",
+  "ConfidentialPaymentRail.setSettlementWindow",
   "MockPaymentToken.mint",
   "MockPaymentToken.approve"
 ];

@@ -223,7 +223,7 @@ async function deployDemo() {
     ),
     setupTransactions,
     privacyNote:
-      "This deployment seeds the public fallback token path. Confidential token settlement remains a separate SKALE beta integration."
+      "This deployment seeds the public fallback token path and the amount-hiding payment commitment rail. Confidential token settlement remains a separate SKALE beta integration."
   };
 }
 

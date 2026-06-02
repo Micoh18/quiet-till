@@ -37,6 +37,17 @@ interface ISettlementVault {
     ) external;
 }
 
+interface IConfidentialPaymentRail {
+    function registerPaymentCommitment(
+        uint256 loanId,
+        uint256 dayIndex,
+        address payer,
+        address payee,
+        bytes32 commitmentHash,
+        bytes32 privateReceiptHash
+    ) external;
+}
+
 contract DailySettlementWindow {
     enum DayStatus {
         Open,
@@ -101,6 +112,10 @@ contract DailySettlementWindow {
     event DecryptCallbackUpdated(address indexed previousDecryptCallback, address indexed nextDecryptCallback);
     event CtxSubmitterUpdated(address indexed previousCtxSubmitter, address indexed nextCtxSubmitter);
     event SettlementVaultUpdated(address indexed previousSettlementVault, address indexed nextSettlementVault);
+    event ConfidentialPaymentRailUpdated(
+        address indexed previousConfidentialPaymentRail,
+        address indexed nextConfidentialPaymentRail
+    );
     event MaxGrossSalesUpdated(uint256 previousMaxGrossSales, uint256 nextMaxGrossSales);
     event ReportWindowOpened(
         uint256 indexed loanId,
@@ -139,6 +154,8 @@ contract DailySettlementWindow {
     uint256 public constant DEFAULT_MAX_GROSS_SALES = 1_000_000_000;
     address public constant DEFAULT_CTX_SUBMITTER = address(0x1B);
     bytes32 private constant RECEIPT_DOMAIN = keccak256("QUIET_TILL_PRIVATE_RECEIPT_V1");
+    bytes32 private constant PAYMENT_COMMITMENT_DOMAIN =
+        keccak256("QUIET_TILL_CONFIDENTIAL_PAYMENT_COMMITMENT_V1");
 
     address public admin;
     address public decryptCallback;
@@ -148,6 +165,7 @@ contract DailySettlementWindow {
     ISettlementRevenueLoan public immutable revenueLoan;
     ISettlementAuditorDisclosure public immutable auditorDisclosure;
     ISettlementVault public settlementVault;
+    IConfidentialPaymentRail public confidentialPaymentRail;
 
     mapping(uint256 => mapping(uint256 => SettlementDay)) private _settlementDays;
     mapping(bytes32 => PendingDecrypt) public pendingDecrypts;
@@ -226,6 +244,13 @@ contract DailySettlementWindow {
         settlementVault = ISettlementVault(nextSettlementVault);
 
         emit SettlementVaultUpdated(previousSettlementVault, nextSettlementVault);
+    }
+
+    function setConfidentialPaymentRail(address nextConfidentialPaymentRail) external onlyAdmin {
+        address previousConfidentialPaymentRail = address(confidentialPaymentRail);
+        confidentialPaymentRail = IConfidentialPaymentRail(nextConfidentialPaymentRail);
+
+        emit ConfidentialPaymentRailUpdated(previousConfidentialPaymentRail, nextConfidentialPaymentRail);
     }
 
     function setMaxGrossSales(uint256 nextMaxGrossSales) external onlyAdmin {
@@ -534,6 +559,7 @@ contract DailySettlementWindow {
         delete pendingDecrypts[requestId];
 
         revenueLoan.applyRepayment(report.loanId, report.grossSales, report.dayIndex, privateReceiptHash);
+        _registerConfidentialPaymentCommitment(report, repaymentAmount, privateReceiptHash);
         _settlePublicFallbackPayment(report.loanId, report.dayIndex, repaymentAmount, privateReceiptHash);
         auditorDisclosure.registerReceipt(
             report.loanId,
@@ -605,6 +631,44 @@ contract DailySettlementWindow {
             revenueLoan.borrowerFor(loanId),
             revenueLoan.lenderFor(loanId),
             repaymentAmount,
+            privateReceiptHash
+        );
+    }
+
+    function _registerConfidentialPaymentCommitment(
+        SalesReportPlaintext memory report,
+        uint256 repaymentAmount,
+        bytes32 privateReceiptHash
+    ) private {
+        IConfidentialPaymentRail rail = confidentialPaymentRail;
+
+        if (address(rail) == address(0)) {
+            return;
+        }
+
+        address borrower = revenueLoan.borrowerFor(report.loanId);
+        address lender = revenueLoan.lenderFor(report.loanId);
+        bytes32 commitmentHash = keccak256(
+            abi.encode(
+                PAYMENT_COMMITMENT_DOMAIN,
+                block.chainid,
+                address(rail),
+                report.loanId,
+                report.dayIndex,
+                borrower,
+                lender,
+                repaymentAmount,
+                report.nonce,
+                privateReceiptHash
+            )
+        );
+
+        rail.registerPaymentCommitment(
+            report.loanId,
+            report.dayIndex,
+            borrower,
+            lender,
+            commitmentHash,
             privateReceiptHash
         );
     }

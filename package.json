@@ -16,6 +16,7 @@
     "report:prepare": "node scripts/prepare-private-report.mjs",
     "report:check": "node scripts/prepare-private-report.mjs --mock --quiet",
     "receipt:check": "node scripts/check-private-receipt.mjs",
+    "payment:check": "node scripts/check-private-payment-commitment.mjs",
     "disclosure:check": "node scripts/check-auditor-disclosure-envelope.mjs",
     "skale:flow": "node scripts/run-skale-private-flow.mjs",
     "skale:check": "node scripts/run-skale-private-flow.mjs --dry-run --quiet",
@@ -27,7 +28,7 @@
     "local:check": "node scripts/run-local-demo.mjs --quiet",
     "transcript:check": "node scripts/check-demo-transcript.mjs",
     "judge:check": "node scripts/check-judge-evidence.mjs",
-    "verify": "npm test && npm run web:build && npm run demo:check && npm run report:check && npm run receipt:check && npm run disclosure:check && npm run skale:check && npm run privacy:check && npm run deploy:check && npm run local:check && npm run transcript:check && npm run judge:check && npm audit --audit-level=high"
+    "verify": "npm test && npm run web:build && npm run demo:check && npm run report:check && npm run receipt:check && npm run payment:check && npm run disclosure:check && npm run skale:check && npm run privacy:check && npm run deploy:check && npm run local:check && npm run transcript:check && npm run judge:check && npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

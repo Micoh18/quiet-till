@@ -5,13 +5,15 @@ const artifacts = {
   DailySettlementWindow: "artifacts/contracts/DailySettlementWindow.sol/DailySettlementWindow.json",
   RevenueLoan: "artifacts/contracts/RevenueLoan.sol/RevenueLoan.json",
   AuditorDisclosure: "artifacts/contracts/AuditorDisclosure.sol/AuditorDisclosure.json",
+  ConfidentialPaymentRail: "artifacts/contracts/ConfidentialPaymentRail.sol/ConfidentialPaymentRail.json",
   SettlementVault: "artifacts/contracts/SettlementVault.sol/SettlementVault.json"
 };
 
 const sourceFiles = [
   "contracts/DailySettlementWindow.sol",
   "contracts/RevenueLoan.sol",
-  "contracts/AuditorDisclosure.sol"
+  "contracts/AuditorDisclosure.sol",
+  "contracts/ConfidentialPaymentRail.sol"
 ];
 
 const coreEventForbiddenInputs = new Set([
@@ -114,6 +116,11 @@ assertEventInputsDoNotLeak(loaded.RevenueLoan, "RevenueLoan", coreEventForbidden
 assertEventInputsDoNotLeak(
   loaded.AuditorDisclosure,
   "AuditorDisclosure",
+  coreEventForbiddenInputs
+);
+assertEventInputsDoNotLeak(
+  loaded.ConfidentialPaymentRail,
+  "ConfidentialPaymentRail",
   coreEventForbiddenInputs
 );
 
