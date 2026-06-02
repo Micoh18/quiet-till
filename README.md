@@ -106,6 +106,12 @@ Validate the external deployment plan without secrets:
 npm run deploy:check
 ```
 
+Check the public ABI privacy surface:
+
+```bash
+npm run privacy:check
+```
+
 Deploy and seed the demo contracts on a configured RPC target:
 
 ```bash
@@ -132,9 +138,13 @@ The transcript turns that manifest into the core demo story: public mode leaks g
 
 `npm run deploy:check` validates the same manifest and deployment order in dry-run mode. `npm run deploy:demo` requires the environment variables shown in `.env.example`, deploys the contracts to the configured RPC chain, runs the setup calls, and can write a JSON deployment summary through `QUIET_TILL_DEPLOY_OUTPUT`.
 
+`npm run privacy:check` blocks obvious privacy regressions in public ABIs and contract sources, including public getters for sensitive mappings and forbidden event fields such as daily sales, exact repayment, auditor identity, or exact outstanding in core contracts.
+
 ## Privacy Boundary
 
 Quiet Till does not emit daily gross sales in public settlement events. Public observers can see report status and receipt hashes, while authorized auditors can verify private receipt details through the disclosure path.
+
+`DailySettlementWindow` keeps full settlement day storage private and exposes only a limited public status view with status, encrypted report hash, and private receipt hash.
 
 `RevenueLoan` exposes public loan terms and status without an exact outstanding getter for arbitrary callers. Lenders, borrowers, auditors, the admin, and the settlement window can read exact loan snapshots through authorized calls.
 
