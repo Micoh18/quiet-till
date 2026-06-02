@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { buildManifest } from "../lib/demo-fixture.mjs";
+import {
+  jsonReplacer,
+  loadArtifact,
+  missingEnv,
+  normalizePrivateKey,
+  requireAddressEnv,
+  requirePositiveIntegerEnv,
+  resolveManifestValue,
+  targetChain
+} from "../lib/script-utils.mjs";
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
@@ -20,83 +30,6 @@ const requiredEnv = [
   "QUIET_TILL_LENDER_ADDRESS",
   "QUIET_TILL_DECRYPT_CALLBACK_ADDRESS"
 ];
-
-function jsonReplacer(_key, value) {
-  return typeof value === "bigint" ? value.toString() : value;
-}
-
-async function loadArtifact(path) {
-  return JSON.parse(await readFile(path, "utf8"));
-}
-
-function targetChain({ chainId, rpcUrl }) {
-  return {
-    id: Number(chainId),
-    name: "Quiet Till target",
-    nativeCurrency: {
-      name: "Ether",
-      symbol: "ETH",
-      decimals: 18
-    },
-    rpcUrls: {
-      default: {
-        http: [rpcUrl]
-      }
-    }
-  };
-}
-
-function normalizePrivateKey(value, envName) {
-  if (value === undefined || value.trim() === "") {
-    throw new Error(`Missing ${envName}`);
-  }
-
-  const trimmed = value.trim();
-  const privateKey = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
-
-  if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
-    throw new Error(`${envName} must be a 32-byte hex private key`);
-  }
-
-  return privateKey;
-}
-
-function requireAddress(envName) {
-  const value = process.env[envName];
-
-  if (value === undefined || value.trim() === "") {
-    throw new Error(`Missing ${envName}`);
-  }
-
-  if (!/^0x[0-9a-fA-F]{40}$/.test(value.trim())) {
-    throw new Error(`${envName} must be an EVM address`);
-  }
-
-  return value.trim();
-}
-
-function missingEnv() {
-  return requiredEnv.filter((name) => process.env[name] === undefined || process.env[name]?.trim() === "");
-}
-
-function resolveManifestValue(value, deployed) {
-  if (typeof value === "string" && value.startsWith("$contracts.")) {
-    const contractName = value.split(".")[1];
-    const contract = deployed[contractName];
-
-    if (contract === undefined) {
-      throw new Error(`Unknown contract placeholder: ${value}`);
-    }
-
-    return contract.address;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => resolveManifestValue(item, deployed));
-  }
-
-  return value;
-}
 
 async function deployContract({ artifact, args: constructorArgs, publicClient, walletClient }) {
   const hash = await walletClient.deployContract({
@@ -144,7 +77,7 @@ async function buildDryRunPlan() {
     mode: "dry-run",
     ok: true,
     requiredEnv,
-    missingEnv: missingEnv(),
+    missingEnv: missingEnv(requiredEnv),
     contracts: Object.fromEntries(
       Object.entries(deployed).map(([name, deployment]) => [
         name,
@@ -177,27 +110,23 @@ function deploymentActors() {
     manifestActors: {
       admin: admin.address,
       merchantOwner: merchantOwner.address,
-      posAgent: requireAddress("QUIET_TILL_POS_AGENT_ADDRESS"),
-      auditor: requireAddress("QUIET_TILL_AUDITOR_ADDRESS"),
-      lender: requireAddress("QUIET_TILL_LENDER_ADDRESS"),
-      decryptCallback: requireAddress("QUIET_TILL_DECRYPT_CALLBACK_ADDRESS")
+      posAgent: requireAddressEnv("QUIET_TILL_POS_AGENT_ADDRESS"),
+      auditor: requireAddressEnv("QUIET_TILL_AUDITOR_ADDRESS"),
+      lender: requireAddressEnv("QUIET_TILL_LENDER_ADDRESS"),
+      decryptCallback: requireAddressEnv("QUIET_TILL_DECRYPT_CALLBACK_ADDRESS")
     }
   };
 }
 
 async function deployDemo() {
-  const missing = missingEnv();
+  const missing = missingEnv(requiredEnv);
 
   if (missing.length > 0) {
     throw new Error(`Missing deployment env vars: ${missing.join(", ")}`);
   }
 
   const rpcUrl = process.env.QUIET_TILL_RPC_URL;
-  const chainId = Number(process.env.QUIET_TILL_CHAIN_ID);
-
-  if (!Number.isInteger(chainId) || chainId <= 0) {
-    throw new Error("QUIET_TILL_CHAIN_ID must be a positive integer");
-  }
+  const chainId = requirePositiveIntegerEnv("QUIET_TILL_CHAIN_ID");
 
   const chain = targetChain({ chainId, rpcUrl });
   const transport = http(rpcUrl);
