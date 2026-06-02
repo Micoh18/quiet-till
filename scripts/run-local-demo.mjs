@@ -33,6 +33,13 @@ const dayStatus = {
   Missing: 5
 };
 
+const loanStatus = {
+  Pending: 0,
+  Active: 1,
+  Repaid: 2,
+  Defaulted: 3
+};
+
 const quiet = process.argv.includes("--quiet");
 
 function jsonReplacer(_key, value) {
@@ -327,6 +334,40 @@ async function runLocalDemo() {
     assert.equal(missingDayStatus[2], "0x0000000000000000000000000000000000000000000000000000000000000000");
     assert.equal(missingDeadline, missingReportDueAt);
 
+    const defaultTriggerDayIndex = missingDayIndex + 1;
+    const defaultTriggerDueAt = missingReportDueAt + 60n;
+
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "openReportWindow",
+      args: [
+        manifest.privateReport.plaintext.loanId,
+        defaultTriggerDayIndex,
+        defaultTriggerDueAt
+      ],
+      from: "lender"
+    });
+    await connection.provider.request({
+      method: "evm_increaseTime",
+      params: [61]
+    });
+    await writeContract({
+      contractName: "DailySettlementWindow",
+      functionName: "markReportMissing",
+      args: [manifest.privateReport.plaintext.loanId, defaultTriggerDayIndex],
+      from: "lender"
+    });
+
+    const covenantStatus = await readContract({
+      contractName: "RevenueLoan",
+      functionName: "getPublicCovenantStatus",
+      args: [manifest.privateReport.plaintext.loanId]
+    });
+
+    assert.equal(Number(covenantStatus[0]), manifest.reportSla.defaultAfterMissedReports);
+    assert.equal(Number(covenantStatus[1]), manifest.reportSla.defaultAfterMissedReports);
+    assert.equal(Number(covenantStatus[2]), loanStatus.Defaulted);
+
     return {
       name: "Quiet Till Local Settlement Demo",
       chainId,
@@ -354,7 +395,11 @@ async function runLocalDemo() {
         missingReportStatus: "Missing",
         missingReportDueAt,
         missingReportLeaksSales: false,
-        missingReportHasReceipt: false
+        missingReportHasReceipt: false,
+        defaultTriggerDayIndex,
+        missedReportCount: Number(covenantStatus[0]),
+        defaultAfterMissedReports: Number(covenantStatus[1]),
+        loanStatusAfterSecondMiss: "Defaulted"
       }
     };
   } finally {

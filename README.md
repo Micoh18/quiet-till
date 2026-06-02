@@ -37,7 +37,7 @@ Early hackathon MVP with core contracts, a local demo, a BITE report-preparation
 ## Current Contract Surface
 
 - `MerchantRegistry`: registers merchants, POS agents, and auditors.
-- `RevenueLoan`: stores revenue-based loan terms, applies capped daily repayments, and keeps exact outstanding snapshots behind participant-only ABI reads.
+- `RevenueLoan`: stores revenue-based loan terms, applies capped daily repayments, tracks missing-report covenant strikes, can default a loan after repeated missed report windows, and keeps exact outstanding snapshots behind participant-only ABI reads.
 - `AuditorDisclosure`: records private receipt metadata and exposes it only to the authorized auditor, admin, or settlement window.
 - `DailySettlementWindow`: stores encrypted report payloads, can bind a report to an optional plaintext commitment hash, opens report windows with deadlines, marks missed report windows without publishing sales, requests settlement, can submit a CTX request through the SKALE submitter precompile, accepts only the authorized manual or CTX decrypt callback, and rejects outlier sales reports above an admin-configured gross sales limit.
 - `MockPaymentToken`: provides a public ERC20-style fallback token for local demos.
@@ -192,7 +192,7 @@ The encrypted report path can include a plaintext commitment hash. When present,
 
 `npm run demo:local` deploys the contracts on an in-memory Hardhat network, seeds "La Barra", publishes the intentionally leaky public-mode report, submits the encrypted private report, requests settlement, simulates the authorized decrypt callback, transfers the fallback qUSD repayment, and verifies that the auditor disclosure path can view the private receipt.
 
-The local demo also opens a follow-up report window, advances the in-memory clock, marks that day as `Missing`, and verifies that a missed close publishes status without inventing or revealing sales.
+The local demo also opens follow-up report windows, advances the in-memory clock, marks missed days as `Missing`, and verifies that repeated missed closes can default the loan without inventing or revealing sales.
 
 `npm run deploy:check` validates the same manifest and deployment order in dry-run mode. `npm run deploy:demo` requires the environment variables shown in `.env.example`, deploys the contracts to the configured RPC chain, runs the setup calls, and can write a JSON deployment summary through `QUIET_TILL_DEPLOY_OUTPUT`.
 
@@ -206,7 +206,7 @@ Quiet Till does not emit daily gross sales in public settlement events. Public o
 
 `DailySettlementWindow` keeps full settlement day storage private and exposes only a limited public status view with status, encrypted report hash, and private receipt hash.
 
-Report deadlines are public compliance state. A missing report can be marked onchain, but it carries no gross sales, projected repayment, or private receipt hash.
+Report deadlines and missing-report covenant strikes are public compliance state. A missing report can be marked onchain, and repeated missed closes can default the loan, but those events carry no gross sales, projected repayment, or private receipt hash.
 
 `RevenueLoan` exposes public loan terms and status without an exact outstanding getter for arbitrary callers. Lenders, borrowers, auditors, the admin, and the settlement window can read exact loan snapshots through authorized calls.
 

@@ -24,6 +24,10 @@ contract LoanObserver {
     {
         return loans.previewRepayment(loanId, grossSales);
     }
+
+    function recordMissingReport(RevenueLoan loans, uint256 loanId, uint256 dayIndex) external {
+        loans.recordMissingReport(loanId, dayIndex);
+    }
 }
 
 contract RevenueLoanTest {
@@ -47,6 +51,11 @@ contract RevenueLoanTest {
         require(loan.outstanding == 10_000, "outstanding mismatch");
         require(loan.repaymentBps == 800, "repayment bps mismatch");
         require(loan.maxDailyRepayment == 500, "daily cap mismatch");
+        require(loan.missedReportCount == 0, "missed report count mismatch");
+        require(
+            loan.maxMissedReportsBeforeDefault == loans.DEFAULT_MAX_MISSED_REPORTS_BEFORE_DEFAULT(),
+            "missed report threshold mismatch"
+        );
         require(loan.status == RevenueLoan.LoanStatus.Active, "loan not active");
     }
 
@@ -92,6 +101,63 @@ contract RevenueLoanTest {
         require(repayment == 99, "repayment mismatch");
         require(loans.getOutstanding(LOAN_ID) == 9_901, "outstanding mismatch");
         require(loans.getStatus(LOAN_ID) == RevenueLoan.LoanStatus.Active, "loan should stay active");
+    }
+
+    function testRecordsMissingReportWithoutDefaultingBelowThreshold() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
+        (uint256 missedReportCount, bool defaulted) = loans.recordMissingReport(LOAN_ID, 5);
+        (
+            uint256 publicMissedReportCount,
+            uint256 maxMissedReportsBeforeDefault,
+            RevenueLoan.LoanStatus status
+        ) = loans.getPublicCovenantStatus(LOAN_ID);
+
+        require(missedReportCount == 1, "missing report count mismatch");
+        require(defaulted == false, "first missing report should not default");
+        require(publicMissedReportCount == 1, "public missing report count mismatch");
+        require(maxMissedReportsBeforeDefault == 2, "public threshold mismatch");
+        require(status == RevenueLoan.LoanStatus.Active, "loan should remain active");
+    }
+
+    function testSecondMissingReportDefaultsLoan() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
+        loans.recordMissingReport(LOAN_ID, 5);
+        (uint256 missedReportCount, bool defaulted) = loans.recordMissingReport(LOAN_ID, 6);
+        (uint256 publicMissedReportCount,, RevenueLoan.LoanStatus status) = loans.getPublicCovenantStatus(LOAN_ID);
+
+        require(missedReportCount == 2, "second missing count mismatch");
+        require(defaulted == true, "second missing report should default");
+        require(publicMissedReportCount == 2, "public second missing count mismatch");
+        require(status == RevenueLoan.LoanStatus.Defaulted, "loan should default");
+    }
+
+    function testAdminCanSetMissingReportThreshold() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+
+        loans.setMissingReportThreshold(LOAN_ID, 3);
+        (,, RevenueLoan.LoanStatus firstStatus) = loans.getPublicCovenantStatus(LOAN_ID);
+        loans.recordMissingReport(LOAN_ID, 5);
+        loans.recordMissingReport(LOAN_ID, 6);
+        (uint256 missedReportCount, uint256 maxMissedReportsBeforeDefault, RevenueLoan.LoanStatus status) =
+            loans.getPublicCovenantStatus(LOAN_ID);
+
+        require(firstStatus == RevenueLoan.LoanStatus.Active, "threshold update should keep loan active");
+        require(missedReportCount == 2, "configured threshold count mismatch");
+        require(maxMissedReportsBeforeDefault == 3, "configured threshold mismatch");
+        require(status == RevenueLoan.LoanStatus.Active, "loan should not default below configured threshold");
+    }
+
+    function testRejectsUnauthorizedMissingReportRecord() public {
+        (RevenueLoan loans,) = _deployActiveLoan(10_000, 800, 500);
+        LoanObserver observer = new LoanObserver();
+
+        try observer.recordMissingReport(loans, LOAN_ID, 5) {
+            revert("expected unauthorized missing report record");
+        } catch (bytes memory) {
+            require(true, "unauthorized missing report record rejected");
+        }
     }
 
     function testFinalRepaymentMarksLoanRepaid() public {

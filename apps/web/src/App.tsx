@@ -412,6 +412,10 @@ function JudgeEvidencePanel() {
       passed:
         judgeEvidence.passConditions.missingReportDoesNotLeakSales &&
         judgeEvidence.passConditions.missingReportDoesNotCreateReceipt
+    },
+    {
+      label: "Covenant defaults",
+      passed: judgeEvidence.passConditions.repeatedMissingReportsDefaultLoan
     }
   ];
 
@@ -441,15 +445,17 @@ function JudgeEvidencePanel() {
           <small>{display.shortHash(judgeEvidence.tamperCheck.tamperedReceiptHash)}</small>
         </div>
         <div className="evidence-column evidence-sla">
-          <span>Report SLA</span>
-          <strong>{judgeEvidence.complianceSla.missingStatus}</strong>
-          <small>Day {judgeEvidence.complianceSla.missingDayIndex} has no sales leak</small>
+          <span>Report covenant</span>
+          <strong>{judgeEvidence.complianceSla.loanStatusAfterDefaultTrigger}</strong>
+          <small>
+            {judgeEvidence.complianceSla.defaultAfterMissedReports} missed days, no sales leak
+          </small>
         </div>
       </div>
       <div className="condition-row">
         {conditions.map((condition) => (
           <span className="condition-pill" key={condition.label}>
-            {condition.label === "Missing day sealed" ? (
+            {condition.label === "Missing day sealed" || condition.label === "Covenant defaults" ? (
               <Clock aria-hidden="true" />
             ) : (
               <CheckCircle aria-hidden="true" />

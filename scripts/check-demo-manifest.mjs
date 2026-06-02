@@ -60,8 +60,11 @@ async function main() {
     "0xb78c4790e0235c77f196a6ff65c1032eda11a10562d7664de22fd59a78b52af8"
   );
   assert.equal(manifest.reportSla.missingDayIndex, 5);
+  assert.equal(manifest.reportSla.defaultTriggerDayIndex, 6);
   assert.equal(manifest.reportSla.deadlineGraceSeconds, 60);
   assert.equal(manifest.reportSla.missingStatus, "Missing");
+  assert.equal(manifest.reportSla.defaultAfterMissedReports, 2);
+  assert.equal(manifest.reportSla.loanStatusAfterDefaultTrigger, "Defaulted");
   assert.equal(manifest.reportSla.publicGrossSalesOnMissing, null);
   assert.equal(manifest.reportSla.publicReceiptHashOnMissing, null);
   assert.equal(manifest.expectedSettlement.repaymentAmount, 99);

@@ -263,6 +263,34 @@ contract DailySettlementWindowTest {
         }
     }
 
+    function testSecondMissingReportDefaultsLoan() public {
+        Fixture memory fixture = _deployFixture();
+        uint256 nextDayIndex = DAY_INDEX + 1;
+
+        fixture.window.openReportWindow(LOAN_ID, DAY_INDEX, block.timestamp);
+        fixture.window.markReportMissing(LOAN_ID, DAY_INDEX);
+        fixture.window.openReportWindow(LOAN_ID, nextDayIndex, block.timestamp);
+        fixture.window.markReportMissing(LOAN_ID, nextDayIndex);
+
+        (
+            DailySettlementWindow.DayStatus status,
+            bytes32 encryptedReportHash,
+            bytes32 privateReceiptHash
+        ) = fixture.window.getPublicDayStatus(LOAN_ID, nextDayIndex);
+        (
+            uint256 missedReportCount,
+            uint256 maxMissedReportsBeforeDefault,
+            RevenueLoan.LoanStatus loanStatus
+        ) = fixture.loan.getPublicCovenantStatus(LOAN_ID);
+
+        require(status == DailySettlementWindow.DayStatus.Missing, "second missing day should be missing");
+        require(encryptedReportHash == bytes32(0), "second missing day should not have encrypted report");
+        require(privateReceiptHash == bytes32(0), "second missing day should not have receipt");
+        require(missedReportCount == 2, "missing report count mismatch");
+        require(maxMissedReportsBeforeDefault == 2, "missing report threshold mismatch");
+        require(loanStatus == RevenueLoan.LoanStatus.Defaulted, "loan should default");
+    }
+
     function testRejectsUnauthorizedReportWindowOpen() public {
         Fixture memory fixture = _deployFixture();
         SettlementActor unauthorized = new SettlementActor();

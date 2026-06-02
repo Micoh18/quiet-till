@@ -24,6 +24,8 @@ contract RevenueLoan {
         uint256 outstanding;
         uint16 repaymentBps;
         uint256 maxDailyRepayment;
+        uint256 missedReportCount;
+        uint256 maxMissedReportsBeforeDefault;
         LoanStatus status;
     }
 
@@ -34,6 +36,7 @@ contract RevenueLoan {
     error InvalidPrincipal();
     error InvalidRepaymentRate();
     error InvalidDailyCap();
+    error InvalidMissingReportLimit();
     error LoanAlreadyCreated();
     error LoanNotCreated();
     error LoanNotPending();
@@ -52,7 +55,21 @@ contract RevenueLoan {
     );
     event LoanActivated(uint256 indexed loanId);
     event RepaymentApplied(uint256 indexed loanId, uint256 indexed dayIndex, bytes32 privateReceiptHash);
+    event MissingReportThresholdUpdated(
+        uint256 indexed loanId,
+        uint256 previousMaxMissedReports,
+        uint256 nextMaxMissedReports
+    );
+    event MissingReportRecorded(
+        uint256 indexed loanId,
+        uint256 indexed dayIndex,
+        uint256 missedReportCount,
+        uint256 maxMissedReportsBeforeDefault
+    );
     event LoanRepaid(uint256 indexed loanId);
+    event LoanDefaulted(uint256 indexed loanId);
+
+    uint256 public constant DEFAULT_MAX_MISSED_REPORTS_BEFORE_DEFAULT = 2;
 
     address public admin;
     address public settlementWindow;
@@ -153,6 +170,8 @@ contract RevenueLoan {
             outstanding: principal,
             repaymentBps: repaymentBps,
             maxDailyRepayment: maxDailyRepayment,
+            missedReportCount: 0,
+            maxMissedReportsBeforeDefault: DEFAULT_MAX_MISSED_REPORTS_BEFORE_DEFAULT,
             status: LoanStatus.Pending
         });
 
@@ -169,6 +188,18 @@ contract RevenueLoan {
         loan.status = LoanStatus.Active;
 
         emit LoanActivated(loanId);
+    }
+
+    function setMissingReportThreshold(uint256 loanId, uint256 nextMaxMissedReportsBeforeDefault) external onlyAdmin {
+        if (nextMaxMissedReportsBeforeDefault == 0) {
+            revert InvalidMissingReportLimit();
+        }
+
+        LoanTerms storage loan = _createdLoan(loanId);
+        uint256 previousMaxMissedReports = loan.maxMissedReportsBeforeDefault;
+        loan.maxMissedReportsBeforeDefault = nextMaxMissedReportsBeforeDefault;
+
+        emit MissingReportThresholdUpdated(loanId, previousMaxMissedReports, nextMaxMissedReportsBeforeDefault);
     }
 
     function applyRepayment(
@@ -191,6 +222,30 @@ contract RevenueLoan {
         if (loan.outstanding == 0) {
             loan.status = LoanStatus.Repaid;
             emit LoanRepaid(loanId);
+        }
+    }
+
+    function recordMissingReport(uint256 loanId, uint256 dayIndex)
+        external
+        onlySettlementWindow
+        returns (uint256 missedReportCount, bool defaulted)
+    {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        if (loan.status != LoanStatus.Active) {
+            revert LoanNotActive();
+        }
+
+        loan.missedReportCount += 1;
+        missedReportCount = loan.missedReportCount;
+
+        emit MissingReportRecorded(loanId, dayIndex, missedReportCount, loan.maxMissedReportsBeforeDefault);
+
+        if (missedReportCount >= loan.maxMissedReportsBeforeDefault) {
+            loan.status = LoanStatus.Defaulted;
+            defaulted = true;
+
+            emit LoanDefaulted(loanId);
         }
     }
 
@@ -237,6 +292,16 @@ contract RevenueLoan {
         LoanTerms storage loan = _createdLoan(loanId);
 
         return (loan.merchantId, loan.principal, loan.repaymentBps, loan.maxDailyRepayment, loan.status);
+    }
+
+    function getPublicCovenantStatus(uint256 loanId)
+        external
+        view
+        returns (uint256 missedReportCount, uint256 maxMissedReportsBeforeDefault, LoanStatus status)
+    {
+        LoanTerms storage loan = _createdLoan(loanId);
+
+        return (loan.missedReportCount, loan.maxMissedReportsBeforeDefault, loan.status);
     }
 
     function getStatus(uint256 loanId) external view returns (LoanStatus) {

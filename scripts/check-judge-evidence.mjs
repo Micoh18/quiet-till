@@ -45,7 +45,10 @@ function main() {
     evidence.publicObserver.quietTillMode.privateReceiptHash
   );
   assert.equal(evidence.complianceSla.missingDayIndex, 5);
+  assert.equal(evidence.complianceSla.defaultTriggerDayIndex, 6);
   assert.equal(evidence.complianceSla.missingStatus, "Missing");
+  assert.equal(evidence.complianceSla.defaultAfterMissedReports, 2);
+  assert.equal(evidence.complianceSla.loanStatusAfterDefaultTrigger, "Defaulted");
   assert.equal(evidence.complianceSla.missingReportLeaksGrossSales, false);
   assert.equal(evidence.complianceSla.missingReportCreatesReceipt, false);
 
@@ -63,6 +66,7 @@ function main() {
   assert.equal(evidence.passConditions.tamperSensitivity, true);
   assert.equal(evidence.passConditions.missingReportDoesNotLeakSales, true);
   assert.equal(evidence.passConditions.missingReportDoesNotCreateReceipt, true);
+  assert.equal(evidence.passConditions.repeatedMissingReportsDefaultLoan, true);
 
   console.log("Judge evidence check passed.");
 }

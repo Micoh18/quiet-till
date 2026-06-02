@@ -17,6 +17,9 @@ interface ISettlementRevenueLoan {
         uint256 dayIndex,
         bytes32 privateReceiptHash
     ) external returns (uint256 repaymentAmount);
+    function recordMissingReport(uint256 loanId, uint256 dayIndex)
+        external
+        returns (uint256 missedReportCount, bool defaulted);
 }
 
 interface ISettlementAuditorDisclosure {
@@ -381,6 +384,7 @@ contract DailySettlementWindow {
         }
 
         day.status = DayStatus.Missing;
+        revenueLoan.recordMissingReport(loanId, dayIndex);
 
         emit DailyReportMissing(loanId, dayIndex, day.merchantId, day.dueAt);
     }
