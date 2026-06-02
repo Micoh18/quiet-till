@@ -49,7 +49,8 @@ const addressBook = {
   AuditorDisclosure: "$contracts.AuditorDisclosure.address",
   MockPaymentToken: "$contracts.MockPaymentToken.address",
   SettlementVault: "$contracts.SettlementVault.address",
-  DailySettlementWindow: "$contracts.DailySettlementWindow.address"
+  DailySettlementWindow: "$contracts.DailySettlementWindow.address",
+  PublicModeSimulator: "$contracts.PublicModeSimulator.address"
 };
 
 const salesReportAbi = parseAbiParameters(
@@ -124,6 +125,11 @@ function buildManifest() {
           addressBook.RevenueLoan,
           addressBook.AuditorDisclosure
         ]
+      },
+      {
+        name: "PublicModeSimulator",
+        artifact: "artifacts/contracts/PublicModeSimulator.sol/PublicModeSimulator.json",
+        constructorArgs: []
       }
     ],
     setupCalls: [

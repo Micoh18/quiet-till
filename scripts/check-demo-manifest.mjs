@@ -9,7 +9,8 @@ const expectedContractOrder = [
   "AuditorDisclosure",
   "MockPaymentToken",
   "SettlementVault",
-  "DailySettlementWindow"
+  "DailySettlementWindow",
+  "PublicModeSimulator"
 ];
 
 const expectedSetupCalls = [
