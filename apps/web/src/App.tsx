@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -50,6 +50,315 @@ const navItems: NavItem[] = [
   { key: "lender", label: "Lender", icon: Landmark },
   { key: "auditor", label: "Auditor", icon: ShieldCheck }
 ];
+
+const heroStats = [
+  {
+    value: "0",
+    label: "sales fields exposed"
+  },
+  {
+    value: "79",
+    label: "contract tests passing"
+  },
+  {
+    value: "3",
+    label: "private proof roles"
+  }
+];
+
+const privacyCards = [
+  {
+    title: "Encrypted close",
+    copy: "The POS submits a sealed daily report and the market only sees an encrypted report hash.",
+    icon: Lock
+  },
+  {
+    title: "Private settlement",
+    copy: "The settlement window computes repayment from decrypted bytes and binds it to a receipt hash.",
+    icon: Calculator
+  },
+  {
+    title: "Auditor-only proof",
+    copy: "Authorized auditors can inspect the receipt; public observers cannot probe another viewer's access.",
+    icon: Receipt
+  }
+];
+
+const operatingSteps = [
+  "Public lending terms stay visible.",
+  "Daily sales stay sealed.",
+  "Compliance failures stay enforceable."
+];
+
+function scrollToDemo() {
+  document.getElementById("demo")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function LandingHeader({ onOpenDemo }: { onOpenDemo: () => void }) {
+  return (
+    <header className="landing-header">
+      <a className="landing-brand" href="#top" aria-label="Quiet Till home">
+        <span className="landing-brand-mark">
+          <Lock aria-hidden="true" />
+        </span>
+        <span>
+          <strong>Quiet Till</strong>
+          <small>Programmable privacy</small>
+        </span>
+      </a>
+      <nav className="landing-nav" aria-label="Landing sections">
+        <a href="#problem">Model</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#demo">Console</a>
+      </nav>
+      <button type="button" className="landing-nav-action" onClick={onOpenDemo} aria-label="Open demo">
+        <Play aria-hidden="true" />
+        Open console
+      </button>
+    </header>
+  );
+}
+
+function HeroMatrix() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      return undefined;
+    }
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return undefined;
+    }
+
+    let animationFrame = 0;
+    let width = 0;
+    let height = 0;
+    const pointer = {
+      x: 0.5,
+      y: 0.5
+    };
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      const rect = canvas.getBoundingClientRect();
+
+      pointer.x = (event.clientX - rect.left) / Math.max(1, rect.width);
+      pointer.y = (event.clientY - rect.top) / Math.max(1, rect.height);
+    }
+
+    function draw(time: number) {
+      const pulse = 0.5 + Math.sin(time * 0.001) * 0.5;
+      const driftX = (pointer.x - 0.5) * 28;
+      const driftY = (pointer.y - 0.5) * 18;
+      const centerX = width * 0.56 + driftX;
+      const centerY = height * 0.5 + driftY;
+      const baseRadiusX = Math.max(width * 0.46, 260);
+      const baseRadiusY = Math.max(height * 0.28, 150);
+
+      context.clearRect(0, 0, width, height);
+
+      context.save();
+      context.translate(centerX, centerY);
+
+      for (let i = 0; i < 76; i += 1) {
+        const t = i / 75;
+        const wobble = Math.sin(time * 0.0007 + i * 0.2) * 8;
+        const rx = baseRadiusX * (0.18 + t * 0.88) + wobble;
+        const ry = baseRadiusY * (0.18 + t * 0.88) + Math.cos(time * 0.0008 + i * 0.18) * 5;
+        const alpha = 0.045 + t * 0.18;
+
+        context.beginPath();
+        context.strokeStyle = `rgba(91, 141, 255, ${alpha})`;
+        context.lineWidth = 0.65 + t * 0.8;
+        context.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        context.stroke();
+      }
+
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 72) {
+        const wave = Math.sin(angle * 7 + time * 0.001) * 0.08;
+        const outerX = Math.cos(angle) * baseRadiusX * (0.98 + wave);
+        const outerY = Math.sin(angle) * baseRadiusY * (0.98 - wave);
+        const innerX = Math.cos(angle) * baseRadiusX * 0.26;
+        const innerY = Math.sin(angle) * baseRadiusY * 0.28;
+
+        context.beginPath();
+        context.strokeStyle = `rgba(125, 176, 255, ${0.06 + pulse * 0.05})`;
+        context.lineWidth = 0.7;
+        context.moveTo(innerX, innerY);
+        context.lineTo(outerX, outerY);
+        context.stroke();
+      }
+
+      const glow = context.createRadialGradient(0, 0, baseRadiusX * 0.24, 0, 0, baseRadiusX * 0.8);
+      glow.addColorStop(0, "rgba(2, 6, 23, 0.96)");
+      glow.addColorStop(0.34, "rgba(12, 20, 59, 0.9)");
+      glow.addColorStop(0.48, `rgba(111, 169, 255, ${0.18 + pulse * 0.08})`);
+      glow.addColorStop(0.78, "rgba(37, 99, 235, 0.04)");
+      glow.addColorStop(1, "rgba(37, 99, 235, 0)");
+
+      context.fillStyle = glow;
+      context.fillRect(-baseRadiusX, -baseRadiusY * 1.4, baseRadiusX * 2, baseRadiusY * 2.8);
+
+      context.beginPath();
+      context.fillStyle = "rgba(5, 10, 38, 0.96)";
+      context.ellipse(0, 0, baseRadiusX * 0.33, baseRadiusY * 0.38, 0, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = `rgba(171, 205, 255, ${0.52 + pulse * 0.18})`;
+      context.lineWidth = 2;
+      context.stroke();
+
+      context.restore();
+
+      animationFrame = window.requestAnimationFrame(draw);
+    }
+
+    resize();
+    animationFrame = window.requestAnimationFrame(draw);
+    window.addEventListener("resize", resize);
+    canvas.addEventListener("pointermove", handlePointerMove);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", resize);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+    };
+  }, []);
+
+  return <canvas className="hero-matrix" ref={canvasRef} aria-hidden="true" />;
+}
+
+function LandingHero({ onOpenDemo }: { onOpenDemo: () => void }) {
+  return (
+    <section className="landing-hero" id="top" aria-labelledby="landing-title">
+      <div className="hero-frame">
+        <LandingHeader onOpenDemo={onOpenDemo} />
+        <div className="hero-content">
+          <div className="hero-copy-panel">
+            <a className="hero-kicker" href="#privacy">
+              <ShieldCheck aria-hidden="true" />
+              Quiet Till Engine v0.1
+              <span>Read proof</span>
+              <ArrowRight aria-hidden="true" />
+            </a>
+            <h1 id="landing-title">
+              Settle hidden
+              <span>revenue.</span>
+            </h1>
+            <p className="hero-copy">
+              Private revenue financing for merchants: POS reports are encrypted, repayments settle onchain, and auditors can verify while competitors see only hashes.
+            </p>
+            <div className="hero-actions">
+              <button type="button" className="hero-primary" onClick={onOpenDemo}>
+                <Play aria-hidden="true" />
+                Open console
+              </button>
+              <a className="hero-secondary" href="#privacy">
+                <EyeOff aria-hidden="true" />
+                Privacy boundary
+              </a>
+            </div>
+          </div>
+          <div className="hero-visual-panel" aria-label="Private settlement graph">
+            <HeroMatrix />
+            <div className="visual-proof-card">
+              <Hash aria-hidden="true" />
+              <span>Market view</span>
+              <strong>receipt hash only</strong>
+            </div>
+          </div>
+        </div>
+        <div className="hero-stats" aria-label="Product signals">
+          {heroStats.map((stat) => {
+            return (
+              <div className="hero-stat" key={stat.label}>
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LandingSections() {
+  return (
+    <>
+      <section className="landing-band" id="problem" aria-labelledby="problem-title">
+        <div className="section-heading">
+          <span>Problem</span>
+          <h2 id="problem-title">Sales data is loan data, but it should not become market data.</h2>
+        </div>
+        <div className="problem-grid">
+          <article>
+            <Megaphone aria-hidden="true" />
+            <h3>Public settlement leaks leverage</h3>
+            <p>
+              A revenue-based lender needs daily sales. A competitor, supplier, or rival lender should not get the same signal for free.
+            </p>
+          </article>
+          <article>
+            <EyeOff aria-hidden="true" />
+            <h3>Quiet Till keeps the till quiet</h3>
+            <p>
+              The public chain can verify state transitions, missed-report covenants, and receipt hashes while the register stays sealed.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="landing-band privacy-band" id="privacy" aria-labelledby="privacy-title">
+        <div className="section-heading">
+          <span>Privacy model</span>
+          <h2 id="privacy-title">Programmable privacy is the settlement engine, not a wrapper.</h2>
+        </div>
+        <div className="privacy-card-grid">
+          {privacyCards.map((card) => {
+            const Icon = card.icon;
+
+            return (
+              <article className="privacy-card" key={card.title}>
+                <Icon aria-hidden="true" />
+                <h3>{card.title}</h3>
+                <p>{card.copy}</p>
+              </article>
+            );
+          })}
+        </div>
+        <div className="operating-model">
+          <div>
+            <span>Operating model</span>
+            <strong>Visible enough for finance. Private enough for commerce.</strong>
+          </div>
+          <ol>
+            {operatingSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      </section>
+    </>
+  );
+}
 
 function Metric({
   label,
@@ -675,7 +984,7 @@ function AuditorView() {
   );
 }
 
-export function App() {
+function DemoConsole() {
   const [activeView, setActiveView] = useState<ViewKey>("public");
   const [activeStep, setActiveStep] = useState<StepKey>(demoFlow[0].key);
 
@@ -692,7 +1001,7 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    <div className="app-shell">
       <AppHeader />
       <section className="workspace">
         <ScenarioRail
@@ -707,6 +1016,25 @@ export function App() {
           {activeView === "lender" ? <LenderView onAdvance={advanceStep} /> : null}
           {activeView === "auditor" ? <AuditorView /> : null}
         </section>
+      </section>
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <main className="site-shell">
+      <LandingHero onOpenDemo={scrollToDemo} />
+      <LandingSections />
+      <section className="demo-section" id="demo" aria-labelledby="demo-title">
+        <div className="section-heading demo-heading">
+          <span>Interactive demo</span>
+          <h2 id="demo-title">Settlement console</h2>
+          <p>
+            The MVP console stays here for judges and builders: roles, hashes, and the private settlement path in one compact surface.
+          </p>
+        </div>
+        <DemoConsole />
       </section>
     </main>
   );
