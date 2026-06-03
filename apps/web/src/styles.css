@@ -1513,6 +1513,302 @@ button {
   min-width: 0;
 }
 
+.site-shell {
+  color: #e5eefc;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(59, 130, 246, 0.18), transparent 28%),
+    radial-gradient(circle at 12% 52%, rgba(14, 165, 233, 0.08), transparent 26%),
+    linear-gradient(180deg, #020617 0%, #07102c 44%, #020617 100%);
+}
+
+.landing-band,
+.demo-section {
+  color: #e5eefc;
+}
+
+.landing-band {
+  position: relative;
+  padding-top: 92px;
+}
+
+.section-heading span {
+  color: #7db0ff;
+}
+
+.section-heading h2 {
+  color: #f8fafc;
+}
+
+.section-heading p,
+.problem-grid p,
+.privacy-card p {
+  color: #a9b7cc;
+}
+
+.problem-grid article,
+.privacy-card {
+  border-color: rgba(125, 176, 255, 0.18);
+  color: #e5eefc;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(7, 16, 44, 0.78)),
+    rgba(2, 6, 23, 0.86);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.28);
+}
+
+.problem-grid article:hover,
+.privacy-card:hover {
+  border-color: rgba(125, 176, 255, 0.32);
+  box-shadow: 0 24px 90px rgba(59, 130, 246, 0.14);
+}
+
+.problem-grid svg,
+.privacy-card svg {
+  color: #7db0ff;
+}
+
+.problem-grid h3,
+.privacy-card h3 {
+  color: #ffffff;
+}
+
+.operating-model {
+  border-color: rgba(125, 176, 255, 0.18);
+  background:
+    radial-gradient(circle at 86% 18%, rgba(125, 176, 255, 0.18), transparent 32%),
+    linear-gradient(90deg, rgba(2, 6, 23, 0.95), rgba(7, 16, 44, 0.86));
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.24);
+}
+
+.operating-model li {
+  border-color: rgba(125, 176, 255, 0.22);
+  color: #dbeafe;
+  background: rgba(125, 176, 255, 0.08);
+}
+
+.demo-section {
+  padding-top: 96px;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0), rgba(2, 6, 23, 0.42) 24%, rgba(2, 6, 23, 0));
+}
+
+.app-shell {
+  color: #e5eefc;
+  background:
+    radial-gradient(circle at 9% 5%, rgba(125, 176, 255, 0.13), transparent 24%),
+    radial-gradient(circle at 91% 14%, rgba(99, 102, 241, 0.14), transparent 28%),
+    #020617;
+}
+
+.brand-icon {
+  border: 1px solid rgba(125, 176, 255, 0.3);
+  color: #7db0ff;
+  background: rgba(37, 99, 235, 0.12);
+  box-shadow: 0 18px 48px rgba(59, 130, 246, 0.14);
+}
+
+.brand-lock p,
+.merchant-card p,
+.view-title p,
+.column-heading p,
+.register-row span,
+.encoded-block span,
+.path-step span,
+.delta-chip span,
+.metric-label,
+.lender-proof-grid span,
+.gate-grid span,
+.evidence-header span,
+.evidence-column span,
+.evidence-column small,
+.proof-grid span,
+.log-entry span,
+.flow-heading {
+  color: #94a3b8;
+}
+
+.brand-lock h1,
+.merchant-card h2,
+.view-title h2,
+.column-heading h3,
+.register-row strong,
+.register-row code,
+.encoded-block code,
+.delta-chip strong,
+.metric strong,
+.gate-heading strong,
+.evidence-header strong,
+.evidence-column strong,
+.problem-grid h3,
+.privacy-card h3 {
+  color: #f8fafc;
+}
+
+.status-pill,
+.scenario-rail,
+.demo-surface,
+.register-screen,
+.privacy-path,
+.audit-ledger,
+.lender-ledger,
+.lender-receipt,
+.payment-boundary,
+.disclosure-gate,
+.receipt-proof,
+.judge-evidence,
+.encoded-block,
+.leak-column,
+.quiet-column,
+.delta-chip,
+.metric,
+.flow-step {
+  border-color: rgba(125, 176, 255, 0.16);
+  background: rgba(7, 16, 44, 0.78);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.22);
+}
+
+.scenario-rail,
+.demo-surface {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(7, 16, 44, 0.8)),
+    rgba(2, 6, 23, 0.88);
+}
+
+.merchant-card,
+.flow-runner,
+.register-row,
+.path-step {
+  border-color: rgba(125, 176, 255, 0.13);
+}
+
+.merchant-avatar,
+.path-index,
+.flow-step-active span,
+.flow-step-complete span {
+  color: #020617;
+  background: #7db0ff;
+}
+
+.nav-button {
+  color: #c7d2e5;
+}
+
+.nav-button:hover {
+  border-color: rgba(125, 176, 255, 0.24);
+  background: rgba(125, 176, 255, 0.08);
+}
+
+.nav-button-active,
+.flow-step-active {
+  border-color: rgba(125, 176, 255, 0.38);
+  color: #ffffff;
+  background: rgba(125, 176, 255, 0.13);
+}
+
+.flow-step span {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.log-entry strong {
+  color: #f8fafc;
+}
+
+.log-good,
+.metric-good,
+.delta-quiet,
+.quiet-column,
+.lender-receipt,
+.receipt-proof,
+.condition-pill {
+  border-color: rgba(94, 234, 212, 0.28);
+}
+
+.status-good,
+.metric-good .metric-label,
+.metric-good strong,
+.delta-quiet,
+.quiet-column .column-heading svg,
+.lender-proof-grid code,
+.proof-grid code,
+.evidence-private strong,
+.evidence-tamper strong,
+.evidence-sla strong,
+.condition-pill,
+.flow-heading svg,
+.view-title > svg {
+  color: #5eead4;
+}
+
+.status-warn,
+.metric-warn .metric-label,
+.metric-warn strong {
+  color: #fbbf24;
+}
+
+.status-danger,
+.metric-danger .metric-label,
+.metric-danger strong,
+.delta-leak,
+.leak-column .column-heading svg,
+.evidence-leak strong {
+  color: #fb7185;
+}
+
+.leak-column {
+  border-color: rgba(251, 113, 133, 0.24);
+  background: rgba(69, 10, 10, 0.28);
+}
+
+.quiet-column,
+.lender-receipt,
+.receipt-proof,
+.condition-pill {
+  background: rgba(8, 47, 73, 0.22);
+}
+
+.payment-boundary {
+  border-color: rgba(251, 191, 36, 0.26);
+  background: rgba(69, 42, 10, 0.28);
+}
+
+.payment-boundary p {
+  color: #fde68a;
+}
+
+.disclosure-gate {
+  border-color: rgba(165, 180, 252, 0.24);
+  background: rgba(49, 46, 129, 0.2);
+}
+
+.gate-heading > svg,
+.gate-grid code,
+.gate-grid strong,
+.delta-column svg {
+  color: #a5b4fc;
+}
+
+.gate-grid div,
+.evidence-column {
+  border-left-color: rgba(125, 176, 255, 0.24);
+}
+
+.condition-pill {
+  color: #5eead4;
+}
+
+.primary-action {
+  color: #020617;
+  background: #ffffff;
+}
+
+.risk-copy {
+  color: #fecdd3;
+}
+
+.risk-copy.muted {
+  color: #a7f3d0;
+}
+
 @media (max-width: 920px) {
   .landing-header {
     min-height: 72px;
