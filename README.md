@@ -102,6 +102,14 @@ npm run report:prepare -- --mock
 
 For live SKALE BITE encryption, set `QUIET_TILL_RPC_URL` and `QUIET_TILL_DAILY_SETTLEMENT_WINDOW_ADDRESS`, then run `npm run report:prepare` without `--mock`.
 
+Print the POS report attestation:
+
+```bash
+npm run pos:attest
+```
+
+For a live POS key, set `QUIET_TILL_POS_AGENT_PRIVATE_KEY` and `QUIET_TILL_DAILY_SETTLEMENT_WINDOW_ADDRESS`, then run `npm run pos:attest -- --live`.
+
 Print the deterministic public-vs-private demo transcript:
 
 ```bash
@@ -160,6 +168,12 @@ Check local BITE report envelope generation:
 
 ```bash
 npm run report:check
+```
+
+Check the POS report attestation:
+
+```bash
+npm run pos:attest:check
 ```
 
 Check private receipt hashing:
@@ -229,6 +243,8 @@ The encrypted report path can include a plaintext commitment hash. When present,
 Each decrypted report also consumes a private nonce hash. Reusing the same report nonce across settlements is rejected, and the nonce hash is kept out of the public ABI and event surface.
 
 `npm run report:prepare -- --mock` uses the official `@skalenetwork/bite` mock to wrap the encoded report into a non-deterministic ciphertext envelope for local checks. Without `--mock`, the same script uses live BITE encryption for CTX and requires the deployed `DailySettlementWindow` address.
+
+`npm run pos:attest` signs an EIP-191 report attestation with the POS agent key. The attestation binds the authorized POS address to the settlement window, encrypted report hash, and plaintext commitment hash, proving report origin without revealing gross sales.
 
 `npm run receipt:check` verifies the canonical private receipt domain, receipt hash calculation, and tamper sensitivity. `npm run demo:local` also reconstructs the auditor receipt and asserts that its hash matches the onchain `privateReceiptHash`.
 
