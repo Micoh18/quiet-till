@@ -50,6 +50,7 @@
     "@skalenetwork/bite": "^0.8.1",
     "lucide-react": "^1.17.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "three": "^0.184.0"
   }
 }

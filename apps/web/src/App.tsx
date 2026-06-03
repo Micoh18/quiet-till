@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
+import * as THREE from "three";
 import {
   Activity,
   AlertTriangle,
@@ -132,12 +133,20 @@ function HeroMatrix() {
       return undefined;
     }
 
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      return undefined;
-    }
-
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      canvas
+    });
+    const matrixGroup = new THREE.Group();
+    const majorRadius = 2.16;
+    const tubeRadius = 0.86;
+    const radialSegments = 260;
+    const tubeSegments = 76;
+    const ringBlue = new THREE.Color(0x4f8dff);
+    const rimBlue = new THREE.Color(0xb7d7ff);
     let animationFrame = 0;
     let width = 0;
     let height = 0;
@@ -146,15 +155,156 @@ function HeroMatrix() {
       y: 0.5
     };
 
+    camera.position.set(0, 0, 7);
+    scene.add(matrixGroup);
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    function clamp(value: number, min: number, max: number) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function torusPoint(u: number, v: number) {
+      const tube = majorRadius + tubeRadius * Math.cos(v);
+
+      return new THREE.Vector3(
+        tube * Math.cos(u),
+        tube * Math.sin(u),
+        tubeRadius * Math.sin(v)
+      );
+    }
+
+    function pointShade(point: THREE.Vector3, u: number, v: number) {
+      const innerRim = Math.pow(clamp(-Math.cos(v), 0, 1), 1.9);
+      const outerSkin = Math.pow(clamp(Math.cos(v), 0, 1), 1.35);
+      const sideLight = Math.pow(Math.abs(Math.cos(u)), 0.72);
+      const upperLift = clamp((point.y + 1.95) / 4.2, 0.18, 1);
+      const depthLift = clamp((point.z + tubeRadius) / (tubeRadius * 2), 0.1, 1);
+
+      return clamp((0.16 + innerRim * 0.72 + outerSkin * 0.22 + sideLight * 0.34) * upperLift * (0.58 + depthLift * 0.42), 0.08, 1);
+    }
+
+    const linePositions: number[] = [];
+    const lineColors: number[] = [];
+    const pointPositions: number[] = [];
+    const pointColors: number[] = [];
+
+    function pushVertex(target: number[], point: THREE.Vector3) {
+      target.push(point.x, point.y, point.z);
+    }
+
+    function pushColor(target: number[], shade: number, tint = ringBlue) {
+      target.push(tint.r * shade, tint.g * shade, tint.b * shade);
+    }
+
+    function pushLine(a: THREE.Vector3, b: THREE.Vector3, u: number, v: number, tint = ringBlue) {
+      const shadeA = pointShade(a, u, v);
+      const shadeB = pointShade(b, u, v);
+
+      pushVertex(linePositions, a);
+      pushVertex(linePositions, b);
+      pushColor(lineColors, shadeA, tint);
+      pushColor(lineColors, shadeB, tint);
+    }
+
+    for (let i = 0; i < radialSegments; i += 1) {
+      const u = (i / radialSegments) * Math.PI * 2;
+      const nextU = ((i + 1) / radialSegments) * Math.PI * 2;
+
+      for (let j = 0; j < tubeSegments; j += 1) {
+        const v = (j / tubeSegments) * Math.PI * 2;
+        const nextV = ((j + 1) / tubeSegments) * Math.PI * 2;
+        const point = torusPoint(u, v);
+        const alongRing = torusPoint(nextU, v);
+        const aroundTube = torusPoint(u, nextV);
+        const diagonal = torusPoint(nextU, nextV);
+        const shade = pointShade(point, u, v);
+
+        pushVertex(pointPositions, point);
+        pushColor(pointColors, shade * 1.18, ringBlue);
+        pushLine(point, alongRing, u, v);
+
+        pushLine(point, aroundTube, u, v);
+
+        if (j % 3 === 0) {
+          pushLine(point, diagonal, u, v);
+        }
+      }
+    }
+
+    function createRing(radius: number, shade: number) {
+      const positions: number[] = [];
+      const colors: number[] = [];
+
+      for (let i = 0; i < radialSegments; i += 1) {
+        const u = (i / radialSegments) * Math.PI * 2;
+        const nextU = ((i + 1) / radialSegments) * Math.PI * 2;
+        const a = new THREE.Vector3(radius * Math.cos(u), radius * Math.sin(u), 0.035);
+        const b = new THREE.Vector3(radius * Math.cos(nextU), radius * Math.sin(nextU), 0.035);
+
+        pushVertex(positions, a);
+        pushVertex(positions, b);
+        pushColor(colors, shade, rimBlue);
+        pushColor(colors, shade, rimBlue);
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+
+      return geometry;
+    }
+
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
+    lineGeometry.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
+
+    const pointGeometry = new THREE.BufferGeometry();
+    pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(pointPositions, 3));
+    pointGeometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColors, 3));
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.5,
+      transparent: true,
+      vertexColors: true
+    });
+    const glowMaterial = new THREE.LineBasicMaterial({
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.8,
+      transparent: true,
+      vertexColors: true
+    });
+    const pointMaterial = new THREE.PointsMaterial({
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.36,
+      size: 0.014,
+      sizeAttenuation: true,
+      transparent: true,
+      vertexColors: true
+    });
+
+    const meshLines = new THREE.LineSegments(lineGeometry, lineMaterial);
+    const meshPoints = new THREE.Points(pointGeometry, pointMaterial);
+    const innerRim = new THREE.LineSegments(createRing(majorRadius - tubeRadius * 0.98, 1.05), glowMaterial);
+    const outerRim = new THREE.LineSegments(createRing(majorRadius + tubeRadius * 0.98, 0.42), glowMaterial);
+
+    matrixGroup.add(meshLines, meshPoints, outerRim, innerRim);
+
     function resize() {
       const rect = canvas.getBoundingClientRect();
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const isCompact = rect.width < 620;
 
       width = Math.max(1, rect.width);
       height = Math.max(1, rect.height);
-      canvas.width = Math.floor(width * pixelRatio);
-      canvas.height = Math.floor(height * pixelRatio);
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / Math.max(1, height);
+      camera.updateProjectionMatrix();
+      matrixGroup.position.set(isCompact ? 0.12 : 0.42, isCompact ? 0.38 : 0.28, 0);
+      matrixGroup.scale.set(isCompact ? 1.28 : 1.42, isCompact ? 0.84 : 0.88, 1);
     }
 
     function handlePointerMove(event: PointerEvent) {
@@ -166,66 +316,16 @@ function HeroMatrix() {
 
     function draw(time: number) {
       const pulse = 0.5 + Math.sin(time * 0.001) * 0.5;
-      const driftX = (pointer.x - 0.5) * 28;
-      const driftY = (pointer.y - 0.5) * 18;
-      const centerX = width * 0.56 + driftX;
-      const centerY = height * 0.5 + driftY;
-      const baseRadiusX = Math.max(width * 0.46, 260);
-      const baseRadiusY = Math.max(height * 0.28, 150);
+      const pointerX = pointer.x - 0.5;
+      const pointerY = pointer.y - 0.5;
 
-      context.clearRect(0, 0, width, height);
-
-      context.save();
-      context.translate(centerX, centerY);
-
-      for (let i = 0; i < 76; i += 1) {
-        const t = i / 75;
-        const wobble = Math.sin(time * 0.0007 + i * 0.2) * 8;
-        const rx = baseRadiusX * (0.18 + t * 0.88) + wobble;
-        const ry = baseRadiusY * (0.18 + t * 0.88) + Math.cos(time * 0.0008 + i * 0.18) * 5;
-        const alpha = 0.045 + t * 0.18;
-
-        context.beginPath();
-        context.strokeStyle = `rgba(91, 141, 255, ${alpha})`;
-        context.lineWidth = 0.65 + t * 0.8;
-        context.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-        context.stroke();
-      }
-
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 72) {
-        const wave = Math.sin(angle * 7 + time * 0.001) * 0.08;
-        const outerX = Math.cos(angle) * baseRadiusX * (0.98 + wave);
-        const outerY = Math.sin(angle) * baseRadiusY * (0.98 - wave);
-        const innerX = Math.cos(angle) * baseRadiusX * 0.26;
-        const innerY = Math.sin(angle) * baseRadiusY * 0.28;
-
-        context.beginPath();
-        context.strokeStyle = `rgba(125, 176, 255, ${0.06 + pulse * 0.05})`;
-        context.lineWidth = 0.7;
-        context.moveTo(innerX, innerY);
-        context.lineTo(outerX, outerY);
-        context.stroke();
-      }
-
-      const glow = context.createRadialGradient(0, 0, baseRadiusX * 0.24, 0, 0, baseRadiusX * 0.8);
-      glow.addColorStop(0, "rgba(2, 6, 23, 0.96)");
-      glow.addColorStop(0.34, "rgba(12, 20, 59, 0.9)");
-      glow.addColorStop(0.48, `rgba(111, 169, 255, ${0.18 + pulse * 0.08})`);
-      glow.addColorStop(0.78, "rgba(37, 99, 235, 0.04)");
-      glow.addColorStop(1, "rgba(37, 99, 235, 0)");
-
-      context.fillStyle = glow;
-      context.fillRect(-baseRadiusX, -baseRadiusY * 1.4, baseRadiusX * 2, baseRadiusY * 2.8);
-
-      context.beginPath();
-      context.fillStyle = "rgba(5, 10, 38, 0.96)";
-      context.ellipse(0, 0, baseRadiusX * 0.33, baseRadiusY * 0.38, 0, 0, Math.PI * 2);
-      context.fill();
-      context.strokeStyle = `rgba(171, 205, 255, ${0.52 + pulse * 0.18})`;
-      context.lineWidth = 2;
-      context.stroke();
-
-      context.restore();
+      matrixGroup.rotation.x = -0.035 + pointerY * 0.055;
+      matrixGroup.rotation.y = -0.13 + pointerX * 0.09;
+      matrixGroup.rotation.z = -0.01 + Math.sin(time * 0.00016) * 0.012;
+      lineMaterial.opacity = 0.29 + pulse * 0.07;
+      glowMaterial.opacity = 0.72 + pulse * 0.18;
+      pointMaterial.opacity = 0.29 + pulse * 0.08;
+      renderer.render(scene, camera);
 
       animationFrame = window.requestAnimationFrame(draw);
     }
@@ -239,6 +339,14 @@ function HeroMatrix() {
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointermove", handlePointerMove);
+      lineGeometry.dispose();
+      pointGeometry.dispose();
+      innerRim.geometry.dispose();
+      outerRim.geometry.dispose();
+      lineMaterial.dispose();
+      glowMaterial.dispose();
+      pointMaterial.dispose();
+      renderer.dispose();
     };
   }, []);
 
