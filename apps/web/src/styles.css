@@ -198,6 +198,7 @@ button {
   height: 100%;
   display: block;
   filter: saturate(1.18) drop-shadow(0 0 34px rgba(79, 141, 255, 0.28));
+  mix-blend-mode: screen;
 }
 
 .hero-content {
@@ -232,7 +233,8 @@ button {
   background:
     radial-gradient(ellipse at 64% 34%, rgba(51, 111, 255, 0.26), transparent 37%),
     radial-gradient(ellipse at 52% 42%, rgba(2, 6, 23, 0.74) 0%, rgba(2, 6, 23, 0.48) 29%, transparent 43%),
-    linear-gradient(90deg, rgba(2, 6, 23, 0.34), rgba(3, 8, 29, 0.08) 48%, rgba(2, 6, 23, 0.2));
+    linear-gradient(90deg, rgba(2, 6, 23, 0.34), rgba(3, 8, 29, 0.08) 48%, rgba(2, 6, 23, 0.2)),
+    #020617;
 }
 
 .hero-visual-panel::before,

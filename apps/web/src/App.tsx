@@ -134,165 +134,53 @@ function HeroMatrix() {
     }
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
-      canvas
+      canvas,
+      powerPreference: "high-performance"
     });
-    const matrixGroup = new THREE.Group();
-    const majorRadius = 2.16;
-    const tubeRadius = 0.86;
-    const radialSegments = 260;
-    const tubeSegments = 76;
-    const ringBlue = new THREE.Color(0x4f8dff);
-    const rimBlue = new THREE.Color(0xb7d7ff);
+    const torusGroup = new THREE.Group();
+    const radius = 15;
+    const tubeRadius = 5.5;
+    const radialSegments = 120;
+    const tubularSegments = 250;
     let animationFrame = 0;
+    let phase = 0;
     let width = 0;
     let height = 0;
-    const pointer = {
-      x: 0.5,
-      y: 0.5
-    };
+    let baseY = 0;
+    let floatAmplitude = 1.5;
 
-    camera.position.set(0, 0, 7);
-    scene.add(matrixGroup);
+    camera.position.set(0, 0, 45);
+    scene.add(torusGroup);
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-    function clamp(value: number, min: number, max: number) {
-      return Math.min(max, Math.max(min, value));
-    }
-
-    function torusPoint(u: number, v: number) {
-      const tube = majorRadius + tubeRadius * Math.cos(v);
-
-      return new THREE.Vector3(
-        tube * Math.cos(u),
-        tube * Math.sin(u),
-        tubeRadius * Math.sin(v)
-      );
-    }
-
-    function pointShade(point: THREE.Vector3, u: number, v: number) {
-      const innerRim = Math.pow(clamp(-Math.cos(v), 0, 1), 1.9);
-      const outerSkin = Math.pow(clamp(Math.cos(v), 0, 1), 1.35);
-      const sideLight = Math.pow(Math.abs(Math.cos(u)), 0.72);
-      const upperLift = clamp((point.y + 1.95) / 4.2, 0.18, 1);
-      const depthLift = clamp((point.z + tubeRadius) / (tubeRadius * 2), 0.1, 1);
-
-      return clamp((0.16 + innerRim * 0.72 + outerSkin * 0.22 + sideLight * 0.34) * upperLift * (0.58 + depthLift * 0.42), 0.08, 1);
-    }
-
-    const linePositions: number[] = [];
-    const lineColors: number[] = [];
-    const pointPositions: number[] = [];
-    const pointColors: number[] = [];
-
-    function pushVertex(target: number[], point: THREE.Vector3) {
-      target.push(point.x, point.y, point.z);
-    }
-
-    function pushColor(target: number[], shade: number, tint = ringBlue) {
-      target.push(tint.r * shade, tint.g * shade, tint.b * shade);
-    }
-
-    function pushLine(a: THREE.Vector3, b: THREE.Vector3, u: number, v: number, tint = ringBlue) {
-      const shadeA = pointShade(a, u, v);
-      const shadeB = pointShade(b, u, v);
-
-      pushVertex(linePositions, a);
-      pushVertex(linePositions, b);
-      pushColor(lineColors, shadeA, tint);
-      pushColor(lineColors, shadeB, tint);
-    }
-
-    for (let i = 0; i < radialSegments; i += 1) {
-      const u = (i / radialSegments) * Math.PI * 2;
-      const nextU = ((i + 1) / radialSegments) * Math.PI * 2;
-
-      for (let j = 0; j < tubeSegments; j += 1) {
-        const v = (j / tubeSegments) * Math.PI * 2;
-        const nextV = ((j + 1) / tubeSegments) * Math.PI * 2;
-        const point = torusPoint(u, v);
-        const alongRing = torusPoint(nextU, v);
-        const aroundTube = torusPoint(u, nextV);
-        const diagonal = torusPoint(nextU, nextV);
-        const shade = pointShade(point, u, v);
-
-        pushVertex(pointPositions, point);
-        pushColor(pointColors, shade * 1.18, ringBlue);
-        pushLine(point, alongRing, u, v);
-
-        pushLine(point, aroundTube, u, v);
-
-        if (j % 3 === 0) {
-          pushLine(point, diagonal, u, v);
-        }
-      }
-    }
-
-    function createRing(radius: number, shade: number) {
-      const positions: number[] = [];
-      const colors: number[] = [];
-
-      for (let i = 0; i < radialSegments; i += 1) {
-        const u = (i / radialSegments) * Math.PI * 2;
-        const nextU = ((i + 1) / radialSegments) * Math.PI * 2;
-        const a = new THREE.Vector3(radius * Math.cos(u), radius * Math.sin(u), 0.035);
-        const b = new THREE.Vector3(radius * Math.cos(nextU), radius * Math.sin(nextU), 0.035);
-
-        pushVertex(positions, a);
-        pushVertex(positions, b);
-        pushColor(colors, shade, rimBlue);
-        pushColor(colors, shade, rimBlue);
-      }
-
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-
-      return geometry;
-    }
-
-    const lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
-    lineGeometry.setAttribute("color", new THREE.Float32BufferAttribute(lineColors, 3));
-
-    const pointGeometry = new THREE.BufferGeometry();
-    pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(pointPositions, 3));
-    pointGeometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColors, 3));
-
-    const lineMaterial = new THREE.LineBasicMaterial({
+    const torusGeometry = new THREE.TorusGeometry(radius, tubeRadius, radialSegments, tubularSegments);
+    const wireGeometry = new THREE.WireframeGeometry(torusGeometry);
+    const outerMaterial = new THREE.LineBasicMaterial({
       blending: THREE.AdditiveBlending,
+      color: 0x3b82f6,
       depthWrite: false,
-      opacity: 0.5,
+      opacity: 0.15,
       transparent: true,
-      vertexColors: true
     });
-    const glowMaterial = new THREE.LineBasicMaterial({
+    const innerMaterial = new THREE.LineBasicMaterial({
       blending: THREE.AdditiveBlending,
+      color: 0x818cf8,
       depthWrite: false,
-      opacity: 0.8,
+      opacity: 0.15,
       transparent: true,
-      vertexColors: true
     });
-    const pointMaterial = new THREE.PointsMaterial({
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 0.36,
-      size: 0.014,
-      sizeAttenuation: true,
-      transparent: true,
-      vertexColors: true
-    });
+    const outerLines = new THREE.LineSegments(wireGeometry, outerMaterial);
+    const innerLines = new THREE.LineSegments(wireGeometry, innerMaterial);
 
-    const meshLines = new THREE.LineSegments(lineGeometry, lineMaterial);
-    const meshPoints = new THREE.Points(pointGeometry, pointMaterial);
-    const innerRim = new THREE.LineSegments(createRing(majorRadius - tubeRadius * 0.98, 1.05), glowMaterial);
-    const outerRim = new THREE.LineSegments(createRing(majorRadius + tubeRadius * 0.98, 0.42), glowMaterial);
-
-    matrixGroup.add(meshLines, meshPoints, outerRim, innerRim);
+    innerLines.scale.set(0.98, 0.98, 0.98);
+    innerLines.rotation.z = Math.PI / radialSegments;
+    torusGroup.rotation.x = Math.PI * 0.25;
+    torusGroup.add(outerLines, innerLines);
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -303,28 +191,17 @@ function HeroMatrix() {
       renderer.setSize(width, height, false);
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
-      matrixGroup.position.set(isCompact ? 0.12 : 0.42, isCompact ? 0.38 : 0.28, 0);
-      matrixGroup.scale.set(isCompact ? 1.28 : 1.42, isCompact ? 0.84 : 0.88, 1);
+      baseY = isCompact ? 1.4 : 0;
+      floatAmplitude = isCompact ? 0.72 : 1.5;
+      torusGroup.position.set(0, baseY, 0);
+      torusGroup.scale.set(isCompact ? 0.86 : 1, isCompact ? 0.86 : 1, 1);
     }
 
-    function handlePointerMove(event: PointerEvent) {
-      const rect = canvas.getBoundingClientRect();
-
-      pointer.x = (event.clientX - rect.left) / Math.max(1, rect.width);
-      pointer.y = (event.clientY - rect.top) / Math.max(1, rect.height);
-    }
-
-    function draw(time: number) {
-      const pulse = 0.5 + Math.sin(time * 0.001) * 0.5;
-      const pointerX = pointer.x - 0.5;
-      const pointerY = pointer.y - 0.5;
-
-      matrixGroup.rotation.x = -0.035 + pointerY * 0.055;
-      matrixGroup.rotation.y = -0.13 + pointerX * 0.09;
-      matrixGroup.rotation.z = -0.01 + Math.sin(time * 0.00016) * 0.012;
-      lineMaterial.opacity = 0.29 + pulse * 0.07;
-      glowMaterial.opacity = 0.72 + pulse * 0.18;
-      pointMaterial.opacity = 0.29 + pulse * 0.08;
+    function draw() {
+      phase += 0.0015;
+      torusGroup.rotation.z = phase * 0.5;
+      torusGroup.rotation.y = Math.sin(phase) * 0.1;
+      torusGroup.position.y = baseY + Math.sin(phase * 2) * floatAmplitude;
       renderer.render(scene, camera);
 
       animationFrame = window.requestAnimationFrame(draw);
@@ -333,19 +210,14 @@ function HeroMatrix() {
     resize();
     animationFrame = window.requestAnimationFrame(draw);
     window.addEventListener("resize", resize);
-    canvas.addEventListener("pointermove", handlePointerMove);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
-      canvas.removeEventListener("pointermove", handlePointerMove);
-      lineGeometry.dispose();
-      pointGeometry.dispose();
-      innerRim.geometry.dispose();
-      outerRim.geometry.dispose();
-      lineMaterial.dispose();
-      glowMaterial.dispose();
-      pointMaterial.dispose();
+      torusGeometry.dispose();
+      wireGeometry.dispose();
+      outerMaterial.dispose();
+      innerMaterial.dispose();
       renderer.dispose();
     };
   }, []);
